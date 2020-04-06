@@ -25,8 +25,10 @@
 
 
 void* receiverThread(void *vargp){
-
-
+	while(1){
+		printf("ola\n");
+		sleep(1);
+	}
 }
 
 
