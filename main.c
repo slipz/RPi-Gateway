@@ -114,7 +114,7 @@ void senderThread(){
     memset(&dest_addr, 0, sizeof(struct sockaddr_ll));
     dest_addr.sll_family = AF_PACKET;
     dest_addr.sll_protocol = htons(ETH_P_ALL);
-    dest_addr.sll_ifindex = if_nametoindex("eth1");
+    dest_addr.sll_ifindex = if_nametoindex("wlan0");
     if (bind(sender_socket, (struct sockaddr*) &dest_addr, sizeof(dest_addr)) < 0) {
       perror("bind failed\n");
       close(sender_socket);
