@@ -14,8 +14,11 @@
 #include <openssl/evp.h>
 #include <openssl/engine.h>
 
-#include<arpa/inet.h>
-#include<sys/socket.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <linux/if_packet.h>
+#include <net/ethernet.h>
+#include <net/if.h>
 
 #include "security_extension.h"
 
@@ -32,7 +35,7 @@ void* receiverThread(void *vargp){
 }
 
 
-void senderThread(){
+/*void senderThread_Old(){
 	int s, recv_len = 0;
 	uint8_t buffer = (uint8_t*) malloc(BUFLEN);
 	struct sockaddr_in si_me, si_other;
@@ -58,10 +61,13 @@ void senderThread(){
 	while(1){
 		printf("waiting ...\n");
 		if((recv_len = recvfrom(s, buffer, BUFLEN, 0, (struct sockaddr*) &si_other, &slen)) == -1){
-			perror("recvfrom()");
-			exit(1);
+			//perror("recvfrom()");
+			//exit(1);
 
 			// keep doing stuff and send final message 
+			
+			
+
 
 		}
 		
@@ -70,7 +76,36 @@ void senderThread(){
 
 	close(s);
 
+}*/
+
+
+
+void senderThread(){
+
+	int source_addr_size, data_size, dest_addr_size, bytes_sent;
+	struct sockaddr_ll source_addr, dest_addr;
+
+	unsigned char *buffer = malloc(65535);
+
+	int receiver_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL)); //verificar htons e sock_raw
+	int sender_socket = socket(PF_PACKET, SOCK_RAW, IPPROTO_RAW);
+
+	memset(&source_addr, 0, sizeof(struct sockaddr_ll));
+    source_addr.sll_family = AF_PACKET;
+    source_addr.sll_protocol = htons(ETH_P_ALL);
+    source_addr.sll_ifindex = if_nametoindex("eth0");
+    if (bind(receiver_socket, (struct sockaddr*) &source_addr, sizeof(source_addr)) < 0) {
+        perror("bind failed\n");
+        close(receiver_socket);
+    }
+
+
 }
+
+
+
+
+
 
 int main(int argc, char** argv){
 
