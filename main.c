@@ -1,181 +1,109 @@
-/* 
-	Raspberry Pi Security Gateway
-	Ensure integrity properties on R-GOOSE Message
-*/
+//---------------------------------------------------------------------
+//	netsniff.cpp	
+//	
+//	This program demonstrates the promiscuous reception of raw
+//	ethernet packets using the Linux PF_PACKET protocol family.
+//	Its screen-output may be redirected to a file.  A user hits
+//	the <CONTROL-C> key-combination to terminate its execution. 
+//
+//	     NOTE: compile as 'root' and change mode using
+//		 root#  gcc  netsniff.cpp -o netsniff
+//		 root#  chmod a+s netsniff
+//	     in order to permit execution by all users
+//
+//	REFERENCE: Gianluca Insolvibile, "The Linux Socket Filter:
+//	Sniffing Bytes over the Network," article in Linux Journal
+//	(June 2001), pp. 26-31.
+//
+//	programmer: ALLAN CRUSE
+//	written on: 18 JAN 2008
+//	revised on: 21 JAN 2008 -- added bound on loop-iterations
+//---------------------------------------------------------------------
 
-#include <stdio.h>
-#include <string.h>
+#include <stdio.h>		// for printf(), perror()
+#include <string.h>		// for strncpy()
+#include <stdlib.h>		// for exit()
+#include <signal.h>		// for signal()
+#include <sys/socket.h>		// for socket(), recvfrom()
+#include <sys/ioctl.h>		// for SIOCGIFFLAGS, SIOCSIFFLAGS
+#include <netinet/in.h>		// for htons()
+#include <linux/if_ether.h>	// for ETH_P_ALL
+#include <linux/if.h>		// for struct ifreq, IFNAMSIZ
 
-#include <pthread.h>
-#include <unistd.h>
+#define MTU	1536		// Maximum Transfer Unit (bytes)
+#define MAX_NUM	10000		// Maximum allowed packet-number
 
-//openssl headers
-#include <openssl/hmac.h>
-#include <openssl/evp.h>
-#include <openssl/engine.h>
+char ifname[] = "eth0";		// name for the network interface
+struct ifreq	ethreq;		// structure for 'ioctl' requests
+int	sock, pkt_num;		// socket-ID and packet-number 
 
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <linux/if_packet.h>
-#include <net/ethernet.h>
-#include <net/if.h>
-
-#include "security_extension.h"
-
-#define BUFLEN 1024
-
-#define PORT 8888
-
-
-void* receiverThread(void *vargp){
-	while(1){
-		printf("ola\n");
-		sleep(1);
-	}
+void my_cleanup( void )
+{
+	// turn off the interface's 'promiscuous' mode
+	ethreq.ifr_flags &= ~IFF_PROMISC;  
+	if ( ioctl( sock, SIOCSIFFLAGS, &ethreq ) < 0 )
+		{ perror( "ioctl: set ifflags" ); exit(1); }
 }
 
 
-/*void senderThread_Old(){
-	int s, recv_len = 0;
-	uint8_t buffer = (uint8_t*) malloc(BUFLEN);
-	struct sockaddr_in si_me, si_other;
-	socklen_t slen = sizeof(si_other);
-
-	if((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1){
-		perror("socket");
-		exit(1);
-	}
-
-	memset((char*) &si_me, 0, sizeof(si_me));
-
-	si_me.sin_family 		= AF_INET;
-	si_me.sin_addr.s_addr 	= htons(INADDR_ANY);
-	si_me.sin_port 			= htons(PORT);
-
-	if(bind(s, (struct sockaddr*) &si_me, sizeof(si_me)) < 0){
-		perror("bind failed");
-		exit(1);
-	}	
+void my_handler( int signo ) 
+{ 
+	// This function executes when the user hits <CTRL-C>. 
+	// It initiates program-termination, thus triggering
+	// the 'cleanup' function we previously installed.
+	exit(0); 
+}
 
 
-	while(1){
-		printf("waiting ...\n");
-		if((recv_len = recvfrom(s, buffer, BUFLEN, 0, (struct sockaddr*) &si_other, &slen)) == -1){
-			//perror("recvfrom()");
-			//exit(1);
+void display_packet( char *buf, int n )
+{
+	unsigned char	ch;
 
-			// keep doing stuff and send final message 
-			
-			
-
-
+	printf( "\npacket #%d ", ++pkt_num );
+	for (int i = 0; i < n; i+=16)
+		{
+		printf( "\n%04X: ", i );
+		for (int j = 0; j < 16; j++)
+			{
+			ch = ( i + j < n ) ? buf[ i+j ] : 0;
+			if ( i + j < n ) printf( "%02X ", ch );
+			else	printf( "   " );
+			}
+		for (int j = 0; j < 16; j++)
+			{
+			ch = ( i + j < n ) ? buf[ i+j ] : ' ';
+			if (( ch < 0x20 )||( ch > 0x7E )) ch = '.';
+			printf( "%c", ch );
+			}
 		}
-		
-		printf("%s\n",buffer);
-	}
-
-	close(s);
-
-}*/
-
-
-
-void senderThread(){
-
-	int source_addr_size, data_size, dest_addr_size, bytes_sent;
-	struct sockaddr_ll source_addr, dest_addr;
-
-	unsigned char *buffer = malloc(65535);
-
-	int receiver_socket; //= socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL)); //verificar htons e sock_raw
-	int sender_socket; //= socket(PF_PACKET, SOCK_RAW, IPPROTO_RAW);
-
-
-	if((receiver_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1){
-		perror("socket");
-		exit(1);
-	}
-
-	if((sender_socket = socket(PF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1){
-		perror("socket");
-		exit(1);
-	}
-
-
-	memset(&source_addr, 0, sizeof(struct sockaddr_ll));
-    source_addr.sll_family = AF_PACKET;
-    source_addr.sll_protocol = htons(ETH_P_ALL);
-    source_addr.sll_ifindex = if_nametoindex("eth0");
-    if (bind(receiver_socket, (struct sockaddr*) &source_addr, sizeof(source_addr)) < 0) {
-        perror("bind failed\n");
-        close(receiver_socket);
-    }
-
-    memset(&dest_addr, 0, sizeof(struct sockaddr_ll));
-    dest_addr.sll_family = AF_PACKET;
-    dest_addr.sll_protocol = htons(ETH_P_ALL);
-    dest_addr.sll_ifindex = if_nametoindex("wlan0");
-    if (bind(sender_socket, (struct sockaddr*) &dest_addr, sizeof(dest_addr)) < 0) {
-      perror("bind failed\n");
-      close(sender_socket);
-    }
-
-    struct ifreq ifr;
-    memset(&ifr, 0, sizeof(ifr));
-    snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "wlan0");
-    if (setsockopt(sender_socket, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr, sizeof(ifr)) < 0) {
-        perror("bind to wlan0");
-    }
-
-    while(1)
-    {
-        source_addr_size = sizeof (struct sockaddr);
-        dest_addr_size = sizeof (struct sockaddr);
-        //Receive a packet
-        data_size = recvfrom(receiver_socket , buffer , 65536 , 0 ,(struct sockaddr *) &source_addr , (socklen_t*)&source_addr_size);
-
-        if(data_size <0 )
-        {
-            printf("Recvfrom error , failed to get packets\n");
-            return 1;
-        }
-        else{
-        printf("Received %d bytes\n",data_size);
-
-        //Huge code to process the packet (optional)
-
-        //Send the same packet out
-        bytes_sent=write(sender_socket,buffer,data_size);
-        printf("Sent %d bytes\n",bytes_sent);
-         if (bytes_sent < 0) {
-            perror("sendto");
-            exit(1);
-         }
-
-        }
-    }
-
-    close(receiver_socket);
-    return 0;
-
+	printf( "\n%d bytes read\n-------\n", n );
 }
 
 
+int main( void )
+{
+	// create an unnamed socket for reception of ethernet packets 
+	sock = socket( PF_PACKET, SOCK_RAW, htons( ETH_P_ALL ) ); 
+	if ( sock < 0 ) { perror( "socket" ); exit( 1 ); }
 
+	// enable 'promiscuous mode' for the selected socket interface
+	strncpy( ethreq.ifr_name, ifname, IFNAMSIZ );
+	if ( ioctl( sock, SIOCGIFFLAGS, &ethreq ) < 0 )
+		{ perror( "ioctl: get ifflags" ); exit(1); }
+	ethreq.ifr_flags |= IFF_PROMISC;  // enable 'promiscuous' mode
+	if ( ioctl( sock, SIOCSIFFLAGS, &ethreq ) < 0 )
+		{ perror( "ioctl: set ifflags" ); exit(1); }
 
+	// make sure 'promiscuous mode' will get disabled upon termination
+	atexit( my_cleanup );
+	signal( SIGINT, my_handler );
 
-
-int main(int argc, char** argv){
-
-
-	pthread_t treceiver_id;
-
-	// IED <- RPi <- Network;
-	pthread_create(&treceiver_id, NULL, receiverThread, (void*)&treceiver_id);
-
-	// IED -> RPi -> Network
-	senderThread();
-
-	
+	// main loop to intercept and display the ethernet packets
+	char	buffer[ MTU ];
+	printf( "\nMonitoring all packets on interface \'%s\' \n", ifname );
+	do	{
+		int	n = recvfrom( sock, buffer, MTU, 0, NULL, NULL );
+		display_packet( buffer, n );
+		}
+	while ( pkt_num < MAX_NUM );
 }
-
