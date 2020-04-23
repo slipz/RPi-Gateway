@@ -27,9 +27,32 @@ got_packet(u_char* args, const struct pcap_pkthdr* header, const u_char* packet)
 /* ---------------------------------------------------------- */
 
 void
-got_packet(u_char* args, const struct pcap_pkthdr* header, const u_char* packet){
-	printf("yooo just got a packet!\n");
-	printf("Data: %s\n",packet);
+got_packet(u_char* args, const struct pcap_pkthdr* header, const u_char* packet)
+	unsigned char	ch;
+
+	printf( "\npacket\n");
+
+	int n = header.len;
+
+	for (int i = 0; i < n; i+=16)
+		{
+		printf( "\n%04X: ", i );
+		for (int j = 0; j < 16; j++)
+			{
+			ch = ( i + j < n ) ? buf[ i+j ] : 0;
+			if ( i + j < n ) printf( "%02X ", ch );
+			else	printf( "   " );
+			}
+		for (int j = 0; j < 16; j++)
+			{
+			ch = ( i + j < n ) ? buf[ i+j ] : ' ';
+			if (( ch < 0x20 )||( ch > 0x7E )) ch = '.';
+			printf( "%c", ch );
+			}
+		}
+	printf( "\n%d bytes read\n-------\n", n );
+
+
 }
 
 void* receiverThread(void *vargp){
