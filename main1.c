@@ -9,6 +9,11 @@
 #include <pthread.h>
 #include <unistd.h>
 
+#include <sys/socket.h>
+#include <arpa/inet.h>
+
+#include <net/if.h>
+
 #include <pcap.h>
 
 
@@ -26,8 +31,71 @@ processPacket_Ied_to_Net(u_char* args, const struct pcap_pkthdr* header, const u
 void
 processPacket_Net_to_Ied(u_char* args, const struct pcap_pkthdr* header, const u_char* packet);
 
+void
+transmitPacket();
+
 
 /* ---------------------------------------------------------- */
+
+void
+transmitPacket(){
+
+	int raw_sd;
+
+	/*if((raw_sd = socket(AF_PA))){
+
+	}*/
+
+
+
+
+}
+
+
+void sendPacketLayer3(unsigned char* buffer, size_t size){
+
+	int raw_sd;
+	const int on = 1;
+
+	struct ifreq ifr;
+	struct sockaddr_in sin;
+
+	memset(&ifr, 0, sizeof(ifr));
+	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", "eth1");
+
+
+	memset(&sin, 0, sizeof(struct sockaddr_in));
+	sin.sin_family = AF_INET;
+	inet_aton("192.168.3.2", &sin.sin_addr.s_addr);
+
+
+	if((raw_sd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0){
+		perror("socket() failed");
+		exit(1);
+	}
+
+	if(setsockopt(raw_sd, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) < 0){
+		perror("2nd error");
+		exit(1);
+	}
+
+	if(setsockopt(raw_sd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, sizeof(ifr)) < 0){
+		perror("3rd error");
+		exit(1);
+	}
+
+	buffer = buffer + 14;
+
+	if(sendto(raw_sd, buffer, size-14, 0, (struct sockaddr*)&sin, sizeof(struct sockaddr)) < 0){
+		perror("4th error");
+		exit(1);
+	}
+
+	close(raw_sd);
+
+
+}
+
 
 void
 processPacket_Ied_to_Net(u_char* args, const struct pcap_pkthdr* header, const u_char* packet){
@@ -53,7 +121,18 @@ processPacket_Ied_to_Net(u_char* args, const struct pcap_pkthdr* header, const u
 			printf( "%c", ch );
 			}
 	}
-		printf( "\n%d bytes read\n-------\n", n );
+	printf( "\n%d bytes read\n-------\n", n );
+
+
+	// Gather packet info and analyse it
+
+
+
+
+
+	// Transmit packet on eth1 (External Network Interface)
+	sendPacketLayer3(packet, header->len);
+
 
 }
 
