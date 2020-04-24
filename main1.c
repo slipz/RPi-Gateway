@@ -105,7 +105,7 @@ void* receiverThread(void *vargp){
 
 	pcap_close(handler);
 
-	printf("Thread Sender Done.\n");
+	printf("Thread Receiver Done.\n");
 }
 
 
