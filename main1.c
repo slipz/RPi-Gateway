@@ -3,8 +3,14 @@
 	Ensure integrity properties on R-GOOSE Message
 */
 
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+
+#include <netdb.h>
+#include <ifaddrs.h>
 
 #include <pthread.h>
 #include <unistd.h>
@@ -302,8 +308,8 @@ int main(int argc, char** argv){
 	netSideI_addr = (char*)malloc(INET_ADDRSTRLEN * sizeof(char));
 
 	// Zero strings
-	memset(iedSideI_addr, 0 * INET_ADDRSTRLEN * sizeof(char));
-	memset(netSideI_addr, 0 * INET_ADDRSTRLEN * sizeof(char));
+	memset(iedSideI_addr, 0, INET_ADDRSTRLEN * sizeof(char));
+	memset(netSideI_addr, 0, INET_ADDRSTRLEN * sizeof(char));
 
 	// Getting Linked List of interfaces and respective info
 	struct ifaddrs *ifaddr, *tmp;
@@ -311,7 +317,7 @@ int main(int argc, char** argv){
 	char host[NI_MAXHOST];
 
 	if(getifaddrs(&ifaddr) == -1){
-		perror(getifaddrs);
+		perror("getifaddrs");
 		exit(1);
 	}
 
@@ -321,7 +327,7 @@ int main(int argc, char** argv){
 			// IedSide Interface
 			if(tmp->ifa_addr == NULL){
 				// IP address not assigned -> ERROR 
-				perror("Interface %s: Ip address not assigned.", iedSideI);
+				perror("Interface: Ip address not assigned.");
 				exit(1);
 			}
 
@@ -346,7 +352,7 @@ int main(int argc, char** argv){
 						// IedSide Interface
 			if(tmp->ifa_addr == NULL){
 				// IP address not assigned -> ERROR 
-				perror("Interface %s: Ip address not assigned.", netSideI);
+				perror("Interface: Ip address not assigned.");
 				exit(1);
 			}
 
