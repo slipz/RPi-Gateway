@@ -65,6 +65,7 @@ char* netSideI = "eth1";
 
 char* iedSideI_addr;
 char* netSideI_addr;
+char* ied_ip_addr = "192.168.2.2"; // must not be hardcoded
 
 char errbuf1[PCAP_ERRBUF_SIZE];
 char errbuf2[PCAP_ERRBUF_SIZE];
@@ -101,7 +102,7 @@ transmitPacket(){
 }
 
 
-void sendPacketLayer3(unsigned char* buffer, size_t size, char* interface, char* if_ip_addr){
+void sendPacketLayer3_IED_NET(unsigned char* buffer, size_t size, char* interface, char* if_ip_addr){
 
 	int raw_sd, status;
 	const int on = 1;
@@ -134,6 +135,91 @@ void sendPacketLayer3(unsigned char* buffer, size_t size, char* interface, char*
 			- Change source IPv4 addr (ip->ip_src) to RPi addr
 		*/ 
 		if((status = inet_pton(AF_INET, if_ip_addr, &(ip->ip_src))) != 1){
+			fprintf(stderr, "inet_pton() failed: %s\n",strerror(status));
+			exit(1);
+		}
+
+		// Recalculate IPv4 Header checksum
+		ip->ip_sum = 0;
+		ip->ip_sum = checksum((uint16_t*)&ip, IP4_HDRLEN);
+
+		memset(&sin, 0, sizeof(struct sockaddr_in));
+		sin.sin_family = AF_INET;
+		sin.sin_addr.s_addr = ip->ip_dst.s_addr;
+
+
+		if((raw_sd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0){
+			perror("socket() failed");
+			exit(1);
+		}
+
+		if(setsockopt(raw_sd, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) < 0){
+			perror("2nd error");
+			exit(1);
+		}
+
+		if(setsockopt(raw_sd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, sizeof(ifr)) < 0){
+			perror("3rd error");
+			exit(1);
+		}
+
+		buffer = buffer + 14;
+
+		if(sendto(raw_sd, buffer, size-14, 0, (struct sockaddr*)&sin, sizeof(struct sockaddr)) < 0){
+			perror("4th error");
+			exit(1);
+		}
+
+		close(raw_sd);
+
+	}
+
+	/* For now, if it is not IPv4, drop packet */
+	else {
+		
+
+
+	}
+
+
+	
+
+
+}
+
+void sendPacketLayer3_NET_IED(unsigned char* buffer, size_t size, char* interface, char* ied_ip_addr){
+
+	int raw_sd, status;
+	const int on = 1;
+
+	struct ifreq ifr;
+	struct sockaddr_in sin;
+
+	memset(&ifr, 0, sizeof(ifr));
+	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", interface);
+
+	
+	/* Manipulate packet */
+	struct ethernet_header* ethernet;
+	struct ip_header* ip;
+	char* payload;
+
+	// Populate auxiliar structs
+	ethernet = (struct ethernet_header*)(buffer);
+	ip = (struct ip_header*)(buffer + SIZE_ETHERNET);
+	u_int size_ip = IP_HL(ip)*4;
+	payload = (u_char*)(buffer + SIZE_ETHERNET + size_ip);
+
+
+	printf("\ntype: %u\n",ethernet->ether_type);
+	
+	/* Check EtherType - 0x0800 -> IPv4 */
+	if(ethernet->ether_type == 8){
+
+		/* NET -> IED 
+			- Change dest IPv4 addr (ip->ip_dst) to IED addr
+		*/ 
+		if((status = inet_pton(AF_INET, ied_ip_addr, &(ip->ip_dst))) != 1){
 			fprintf(stderr, "inet_pton() failed: %s\n",strerror(status));
 			exit(1);
 		}
