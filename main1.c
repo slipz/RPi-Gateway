@@ -29,6 +29,9 @@
 #define ETHER_ADDR_LEN	6
 #define SIZE_ETHERNET 14	// Ethernet Header Size
 
+#define IP4_HDRLEN 20  // IPv4 header length
+
+
 /* Ethernet header */
 struct ethernet_header {
 	u_char ether_dhost[ETHER_ADDR_LEN]; /* Destination host address */
@@ -77,6 +80,9 @@ processPacket_Net_to_Ied(u_char* args, const struct pcap_pkthdr* header, const u
 void
 transmitPacket();
 
+uint16_t 
+checksum (uint16_t *addr, int len);
+
 
 /* ---------------------------------------------------------- */
 
@@ -124,8 +130,6 @@ void sendPacketLayer3(unsigned char* buffer, size_t size){
 	/* Check EtherType - 0x0800 -> IPv4 */
 	if(ethernet->ether_type == 8){
 
-		printf("aquiiii\n");
-		
 		/* IED -> NET 
 			- Change source IPv4 addr (ip->ip_src) to RPi addr
 		*/ 
@@ -134,17 +138,15 @@ void sendPacketLayer3(unsigned char* buffer, size_t size){
 			exit(1);
 		}
 
-
-		//s = getnameinfo(ifa->ifa_addr,sizeof(struct sockaddr_in),
-		//		host, NI_MAXHOST,
-		//		NULL, 0, NI_NUMERICHOST);
-
+		// Recalculate IPv4 Header checksum
+		ip->ip_sum = 0;
+		ip->ip_sum = checksum((uint16_t*)&ip, IP4_HDRLEN);
 
 	}
 
 	/* For now, if it is not IPv4, drop packet */
 	else {
-		printf("aqui222 elseeee\n");
+		
 
 
 	}
@@ -297,6 +299,38 @@ void senderThread(){
 
 	printf("Thread Sender Done.\n");
 
+}
+
+// Computing the internet checksum (RFC 1071).
+// Note that the internet checksum does not preclude collisions.
+uint16_t checksum (uint16_t *addr, int len)
+{
+  int count = len;
+  register uint32_t sum = 0;
+  uint16_t answer = 0;
+
+  // Sum up 2-byte values until none or only one byte left.
+  while (count > 1) {
+    sum += *(addr++);
+    count -= 2;
+  }
+
+  // Add left-over byte, if any.
+  if (count > 0) {
+    sum += *(uint8_t *) addr;
+  }
+
+  // Fold 32-bit sum into 16 bits; we lose information by doing this,
+  // increasing the chances of a collision.
+  // sum = (lower 16 bits) + (upper 16 bits shifted right 16 bits)
+  while (sum >> 16) {
+    sum = (sum & 0xffff) + (sum >> 16);
+  }
+
+  // Checksum is one's compliment of sum.
+  answer = ~sum;
+
+  return (answer);
 }
 
 
