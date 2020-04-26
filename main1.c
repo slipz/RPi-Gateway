@@ -11,6 +11,8 @@
 
 #include <netdb.h>
 #include <ifaddrs.h>
+#include <arpa/inet.h>
+#include <linux/if_link.h>
 
 #include <pthread.h>
 #include <unistd.h>
@@ -312,7 +314,7 @@ int main(int argc, char** argv){
 	memset(netSideI_addr, 0, INET_ADDRSTRLEN * sizeof(char));
 
 	// Getting Linked List of interfaces and respective info
-	struct ifaddrs *ifaddr, *tmp;
+	struct ifaddrs *ifaddr, *ifa;
 	int s, family;
 	char host[NI_MAXHOST];
 
@@ -322,55 +324,60 @@ int main(int argc, char** argv){
 	}
 
 	// Look for our interfaces - ifname in global variables
-	for(tmp = ifaddr; tmp != NULL; tmp = tmp->ifa_next){
-		if(strcmp(tmp->ifa_name,iedSideI) == 0){
+	for(ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next){
+		if(strcmp(ifa->ifa_name,iedSideI) == 0){
 			// IedSide Interface
-			if(tmp->ifa_addr == NULL){
+			if(ifa->ifa_addr == NULL){
 				// IP address not assigned -> ERROR 
 				perror("Interface: Ip address not assigned.");
 				exit(1);
 			}
 
-			family = tmp->ifa_addr->sa_family;
+			family = ifa->ifa_addr->sa_family;
 
-			s = getnameinfo(tmp->ifa_addr,
-				(family == AF_INET) ? sizeof(struct sockaddr_in) :
-									  sizeof(struct sockaddr_in6),
+			if(family == AF_INET){
+				s = getnameinfo(ifa->ifa_addr,sizeof(struct sockaddr_in),
 				host, NI_MAXHOST,
 				NULL, 0, NI_NUMERICHOST);
 
-			if(s != 0){
-				perror("getnameinfo() error");
-				exit(1);
+				if(s != 0){
+					perror("getnameinfo() error");
+					printf("%d\n",s);
+					exit(1);
+				}
+
+				strcpy(iedSideI_addr, host);
+				printf("Interface %s: %s\n", iedSideI, iedSideI_addr);
 			}
 
-			strcpy(iedSideI_addr, host);
-			printf("Interface %s: %s\n", iedSideI, iedSideI_addr);
-
-		}else if(strcmp(tmp->ifa_name,netSideI) == 0){
+		}else if(strcmp(ifa->ifa_name,netSideI) == 0){
 			// NetSIde Interface
 						// IedSide Interface
-			if(tmp->ifa_addr == NULL){
+			if(ifa->ifa_addr == NULL){
 				// IP address not assigned -> ERROR 
 				perror("Interface: Ip address not assigned.");
 				exit(1);
 			}
 
-			family = tmp->ifa_addr->sa_family;
+			family = ifa->ifa_addr->sa_family;
 
-			s = getnameinfo(tmp->ifa_addr,
-				(family == AF_INET) ? sizeof(struct sockaddr_in) :
-									  sizeof(struct sockaddr_in6),
-				host, NI_MAXHOST,
-				NULL, 0, NI_NUMERICHOST);
+			if(family == AF_INET){
+				s = getnameinfo(ifa->ifa_addr,
+					(family == AF_INET) ? sizeof(struct sockaddr_in) :
+										  sizeof(struct sockaddr_in6),
+					host, NI_MAXHOST,
+					NULL, 0, NI_NUMERICHOST);
 
-			if(s != 0){
-				perror("getnameinfo() error");
-				exit(1);
+				if(s != 0){
+					perror("getnameinfo() error");
+					exit(1);
+				}
+
+				strcpy(netSideI_addr, host);
+				printf("Interface %s: %s\n", netSideI, netSideI_addr);
 			}
 
-			strcpy(netSideI_addr, host);
-			printf("Interface %s: %s\n", netSideI, netSideI_addr);
+			
 
 		}else{
 			// Irrelevant Interface
