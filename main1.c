@@ -121,6 +121,8 @@ void sendPacketLayer3(unsigned char* buffer, size_t size){
 	
 	/* Check EtherType - 0x0800 -> IPv4 */
 	if(ethernet->ether_type == 0x0800){
+
+		printf("aquiiii\n");
 		
 		/* IED -> NET 
 			- Change source IPv4 addr (ip->ip_src) to RPi addr
@@ -131,6 +133,9 @@ void sendPacketLayer3(unsigned char* buffer, size_t size){
 		}
 
 
+		//s = getnameinfo(ifa->ifa_addr,sizeof(struct sockaddr_in),
+		//		host, NI_MAXHOST,
+		//		NULL, 0, NI_NUMERICHOST);
 
 
 	}
@@ -384,10 +389,10 @@ int main(int argc, char** argv){
 
 
 
-	pthread_t treceiver_id;
+	//pthread_t treceiver_id;
 
 	// IED <- RPi <- Network;
-	pthread_create(&treceiver_id, NULL, receiverThread, (void*)&treceiver_id);
+	//pthread_create(&treceiver_id, NULL, receiverThread, (void*)&treceiver_id);
 
 	// IED -> RPi -> Network
 	senderThread();
