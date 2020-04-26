@@ -118,9 +118,11 @@ void sendPacketLayer3(unsigned char* buffer, size_t size){
 	u_int size_ip = IP_HL(ip)*4;
 	payload = (u_char*)(buffer + SIZE_ETHERNET + size_ip);
 
+
+	printf("\ntype: %u\n",ethernet->ether_type);
 	
 	/* Check EtherType - 0x0800 -> IPv4 */
-	if(ethernet->ether_type == 0x0800){
+	if(ethernet->ether_type == 8){
 
 		printf("aquiiii\n");
 		
