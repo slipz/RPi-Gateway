@@ -84,6 +84,10 @@ transmitPacket();
 uint16_t 
 checksum (uint16_t *addr, int len);
 
+void sendPacketLayer3_IED_NET(unsigned char* buffer, size_t size, char* interface, char* if_ip_addr);
+
+void sendPacketLayer3_NET_IED(unsigned char* buffer, size_t size, char* interface, char* ied_ip_addr);
+
 
 /* ---------------------------------------------------------- */
 
@@ -307,7 +311,7 @@ processPacket_Ied_to_Net(u_char* args, const struct pcap_pkthdr* header, const u
 
 
 	// Transmit packet on eth1 (External Network Interface)
-	sendPacketLayer3(packet, header->len, netSideI, netSideI_addr);
+	sendPacketLayer3_IED_NET(packet, header->len, netSideI, netSideI_addr);
 
 
 }
@@ -338,6 +342,9 @@ processPacket_Net_to_Ied(u_char* args, const struct pcap_pkthdr* header, const u
 			}
 	}
 		printf( "\n%d bytes read\n-------\n", n );
+
+	// Transmit to internal network -> IED 
+	sendPacketLayer3_NET_IED(packet, header->len, iedSideI, ied_ip_addr);
 
 }
 
