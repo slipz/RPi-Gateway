@@ -101,7 +101,7 @@ transmitPacket(){
 }
 
 
-void sendPacketLayer3(unsigned char* buffer, size_t size){
+void sendPacketLayer3(unsigned char* buffer, size_t size, char* interface, char* if_ip_addr){
 
 	int raw_sd, status;
 	const int on = 1;
@@ -110,7 +110,7 @@ void sendPacketLayer3(unsigned char* buffer, size_t size){
 	struct sockaddr_in sin;
 
 	memset(&ifr, 0, sizeof(ifr));
-	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", "eth1");
+	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", interface);
 
 	
 	/* Manipulate packet */
@@ -133,7 +133,7 @@ void sendPacketLayer3(unsigned char* buffer, size_t size){
 		/* IED -> NET 
 			- Change source IPv4 addr (ip->ip_src) to RPi addr
 		*/ 
-		if((status = inet_pton(AF_INET, netSideI_addr, &(ip->ip_src))) != 1){
+		if((status = inet_pton(AF_INET, if_ip_addr, &(ip->ip_src))) != 1){
 			fprintf(stderr, "inet_pton() failed: %s\n",strerror(status));
 			exit(1);
 		}
@@ -141,6 +141,35 @@ void sendPacketLayer3(unsigned char* buffer, size_t size){
 		// Recalculate IPv4 Header checksum
 		ip->ip_sum = 0;
 		ip->ip_sum = checksum((uint16_t*)&ip, IP4_HDRLEN);
+
+		memset(&sin, 0, sizeof(struct sockaddr_in));
+		sin.sin_family = AF_INET;
+		sin.sin_addr.s_addr = ip->ip_dst.s_addr;
+
+
+		if((raw_sd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0){
+			perror("socket() failed");
+			exit(1);
+		}
+
+		if(setsockopt(raw_sd, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) < 0){
+			perror("2nd error");
+			exit(1);
+		}
+
+		if(setsockopt(raw_sd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, sizeof(ifr)) < 0){
+			perror("3rd error");
+			exit(1);
+		}
+
+		buffer = buffer + 14;
+
+		if(sendto(raw_sd, buffer, size-14, 0, (struct sockaddr*)&sin, sizeof(struct sockaddr)) < 0){
+			perror("4th error");
+			exit(1);
+		}
+
+		close(raw_sd);
 
 	}
 
@@ -152,37 +181,7 @@ void sendPacketLayer3(unsigned char* buffer, size_t size){
 	}
 
 
-	memset(&sin, 0, sizeof(struct sockaddr_in));
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = ip->ip_dst.s_addr;
-
-
-	//inet_aton("192.168.3.2", &sin.sin_addr.s_addr);
-
-
-	if((raw_sd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0){
-		perror("socket() failed");
-		exit(1);
-	}
-
-	if(setsockopt(raw_sd, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) < 0){
-		perror("2nd error");
-		exit(1);
-	}
-
-	if(setsockopt(raw_sd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, sizeof(ifr)) < 0){
-		perror("3rd error");
-		exit(1);
-	}
-
-	buffer = buffer + 14;
-
-	if(sendto(raw_sd, buffer, size-14, 0, (struct sockaddr*)&sin, sizeof(struct sockaddr)) < 0){
-		perror("4th error");
-		exit(1);
-	}
-
-	close(raw_sd);
+	
 
 
 }
@@ -222,7 +221,7 @@ processPacket_Ied_to_Net(u_char* args, const struct pcap_pkthdr* header, const u
 
 
 	// Transmit packet on eth1 (External Network Interface)
-	sendPacketLayer3(packet, header->len);
+	sendPacketLayer3(packet, header->len, netSideI, netSideI_addr);
 
 
 }
@@ -428,7 +427,7 @@ int main(int argc, char** argv){
 	//pthread_t treceiver_id;
 
 	// IED <- RPi <- Network;
-	//pthread_create(&treceiver_id, NULL, receiverThread, (void*)&treceiver_id);
+	pthread_create(&treceiver_id, NULL, receiverThread, (void*)&treceiver_id);
 
 	// IED -> RPi -> Network
 	senderThread();
