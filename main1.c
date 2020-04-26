@@ -97,7 +97,7 @@ transmitPacket(){
 
 void sendPacketLayer3(unsigned char* buffer, size_t size){
 
-	int raw_sd;
+	int raw_sd, status;
 	const int on = 1;
 
 	struct ifreq ifr;
@@ -118,10 +118,12 @@ void sendPacketLayer3(unsigned char* buffer, size_t size){
 		/* IED -> NET 
 			- Change source IPv4 addr (ip->ip_src) to RPi addr
 		*/ 
+		if((status = inet_pton(AF_INET, netSideI_addr, &(ip->ip_src))) != 1){
+			fprintf(stderr, "inet_pton() failed: %s\n",strerror(status));
+			exit(1);
+		}
 
-		// Should make ip addr global variable
-		// we get from interface with ifreq struct
-		inet_pton(AF_INET, "192.168.3.1", &(ip->ip_src));
+
 
 
 	}
@@ -135,25 +137,17 @@ void sendPacketLayer3(unsigned char* buffer, size_t size){
 
 
 	ethernet = (struct ethernet_header*)(buffer);
-	printf("1\n");
 	ip = (struct ip_header*)(buffer + SIZE_ETHERNET);
-	printf("2\n");
 	u_int size_ip = IP_HL(ip)*4;
-	printf("3\n");
 	payload = (u_char*)(buffer + SIZE_ETHERNET + size_ip);
-
-
-	printf("buffer[0]: %04X",buffer[0]);
-	ethernet->ether_dhost[0] = 0x13;
-	printf("buffer[0]: %04X",buffer[0]);
-
-	// Change source addr from IED to RPi
-		
-
+	
 
 	memset(&sin, 0, sizeof(struct sockaddr_in));
 	sin.sin_family = AF_INET;
-	inet_aton("192.168.3.2", &sin.sin_addr.s_addr);
+	sin.sin_addr.s_addr = ip->ip_dst.s_addr;
+
+
+	//inet_aton("192.168.3.2", &sin.sin_addr.s_addr);
 
 
 	if((raw_sd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0){
@@ -389,13 +383,13 @@ int main(int argc, char** argv){
 
 
 
-	//pthread_t treceiver_id;
+	pthread_t treceiver_id;
 
 	// IED <- RPi <- Network;
-	//pthread_create(&treceiver_id, NULL, receiverThread, (void*)&treceiver_id);
+	pthread_create(&treceiver_id, NULL, receiverThread, (void*)&treceiver_id);
 
 	// IED -> RPi -> Network
-	//senderThread();
+	senderThread();
 
 	
 }
