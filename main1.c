@@ -99,18 +99,23 @@ void sendPacketLayer3(unsigned char* buffer, size_t size){
 	/* Manipulate packet */
 	struct ethernet_header* ethernet;
 	struct ip_header* ip;
-	char* payload;
 
+	char* payload;
+	
+	printf("chegou\n");
 
 	ethernet = (struct ethernet_header*)(buffer);
+	printf("1\n");
 	ip = (struct ip_header*)(buffer + SIZE_ETHERNET);
+	printf("2\n");
 	u_int size_ip = IP_HL(ip)*4;
+	printf("3\n");
 	payload = (u_char*)(buffer + SIZE_ETHERNET + size_ip);
 
 
-	printf("buffer[0]: %s",buffer[0]);
+	printf("buffer[0]: %04X",buffer[0]);
 	ethernet->ether_dhost[0] = 0x13;
-	printf("buffer[0]: %s",buffer[0]);
+	printf("buffer[0]: %04X",buffer[0]);
 
 	// Change source addr from IED to RPi
 	inet_pton(AF_INET, "192.168.3.1", &(ip->ip_src));	
