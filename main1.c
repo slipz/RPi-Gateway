@@ -111,6 +111,13 @@ void sendPacketLayer3(unsigned char* buffer, size_t size){
 	struct ethernet_header* ethernet;
 	struct ip_header* ip;
 	char* payload;
+
+	// Populate auxiliar structs
+	ethernet = (struct ethernet_header*)(buffer);
+	ip = (struct ip_header*)(buffer + SIZE_ETHERNET);
+	u_int size_ip = IP_HL(ip)*4;
+	payload = (u_char*)(buffer + SIZE_ETHERNET + size_ip);
+
 	
 	/* Check EtherType - 0x0800 -> IPv4 */
 	if(ethernet->ether_type == 0x0800){
@@ -135,12 +142,6 @@ void sendPacketLayer3(unsigned char* buffer, size_t size){
 
 	}
 
-
-	ethernet = (struct ethernet_header*)(buffer);
-	ip = (struct ip_header*)(buffer + SIZE_ETHERNET);
-	u_int size_ip = IP_HL(ip)*4;
-	payload = (u_char*)(buffer + SIZE_ETHERNET + size_ip);
-	
 
 	memset(&sin, 0, sizeof(struct sockaddr_in));
 	sin.sin_family = AF_INET;
