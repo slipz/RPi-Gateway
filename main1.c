@@ -424,7 +424,7 @@ int main(int argc, char** argv){
 
 
 
-	//pthread_t treceiver_id;
+	pthread_t treceiver_id;
 
 	// IED <- RPi <- Network;
 	pthread_create(&treceiver_id, NULL, receiverThread, (void*)&treceiver_id);
