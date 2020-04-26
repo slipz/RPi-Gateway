@@ -142,7 +142,7 @@ void sendPacketLayer3(unsigned char* buffer, size_t size){
 
 	/* For now, if it is not IPv4, drop packet */
 	else {
-
+		printf("aqui222 elseeee\n");
 
 
 	}
