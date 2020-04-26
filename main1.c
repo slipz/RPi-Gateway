@@ -17,6 +17,38 @@
 #include <pcap.h>
 
 
+/* Ethernet addresses are 6 bytes */
+#define ETHER_ADDR_LEN	6
+#define SIZE_ETHERNET 14	// Ethernet Header Size
+
+/* Ethernet header */
+struct ethernet_header {
+	u_char ether_dhost[ETHER_ADDR_LEN]; /* Destination host address */
+	u_char ether_shost[ETHER_ADDR_LEN]; /* Source host address */
+	u_short ether_type; /* IP? ARP? RARP? etc */
+};
+
+/* IP header */
+struct ip_header {
+	u_char ip_vhl;		/* version << 4 | header length >> 2 */
+	u_char ip_tos;		/* type of service */
+	u_short ip_len;		/* total length */
+	u_short ip_id;		/* identification */
+	u_short ip_off;		/* fragment offset field */
+#define IP_RF 0x8000		/* reserved fragment flag */
+#define IP_DF 0x4000		/* dont fragment flag */
+#define IP_MF 0x2000		/* more fragments flag */
+#define IP_OFFMASK 0x1fff	/* mask for fragmenting bits */
+	u_char ip_ttl;		/* time to live */
+	u_char ip_p;		/* protocol */
+	u_short ip_sum;		/* checksum */
+	struct in_addr ip_src,ip_dst; /* source and dest address */
+};
+#define IP_HL(ip)		(((ip)->ip_vhl) & 0x0f)
+#define IP_V(ip)		(((ip)->ip_vhl) >> 4)
+
+
+
 char* iedSideI = "eth0"; //trocar eth0
 char* netSideI = "eth1";
 
@@ -62,6 +94,26 @@ void sendPacketLayer3(unsigned char* buffer, size_t size){
 
 	memset(&ifr, 0, sizeof(ifr));
 	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", "eth1");
+
+	
+	/* Manipulate packet */
+	struct ethernet_header* ethernet;
+	struct ip_header* ip;
+	char* payload;
+
+
+	ethernet = (struct ethernet_header*)(buffer);
+	ip = (struct ip_header*)(buffer + SIZE_ETHERNET);
+	u_int size_ip = IP_HL(ip)*4;
+	payload = (u_char*)(buffer + SIZE_ETHERNET + size_ip);
+
+
+	printf("buffer[0]: %s",buffer[0]);
+	ethernet->ether_dhost[0] = 0x13;
+	printf("buffer[0]: %s",buffer[0]);
+
+	// Change source addr from IED to RPi
+	inet_pton(AF_INET, "192.168.3.1", &(ip->ip_src));	
 
 
 	memset(&sin, 0, sizeof(struct sockaddr_in));
