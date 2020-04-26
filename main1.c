@@ -52,6 +52,9 @@ struct ip_header {
 char* iedSideI = "eth0"; //trocar eth0
 char* netSideI = "eth1";
 
+char* iedSideI_addr;
+char* netSideI_addr;
+
 char errbuf1[PCAP_ERRBUF_SIZE];
 char errbuf2[PCAP_ERRBUF_SIZE];
 
@@ -99,10 +102,29 @@ void sendPacketLayer3(unsigned char* buffer, size_t size){
 	/* Manipulate packet */
 	struct ethernet_header* ethernet;
 	struct ip_header* ip;
-
 	char* payload;
 	
-	printf("chegou\n");
+	/* Check EtherType - 0x0800 -> IPv4 */
+	if(ethernet->ether_type == 0x0800){
+		
+		/* IED -> NET 
+			- Change source IPv4 addr (ip->ip_src) to RPi addr
+		*/ 
+
+		// Should make ip addr global variable
+		// we get from interface with ifreq struct
+		inet_pton(AF_INET, "192.168.3.1", &(ip->ip_src));
+
+
+	}
+
+	/* For now, if it is not IPv4, drop packet */
+	else {
+
+
+
+	}
+
 
 	ethernet = (struct ethernet_header*)(buffer);
 	printf("1\n");
@@ -118,7 +140,7 @@ void sendPacketLayer3(unsigned char* buffer, size_t size){
 	printf("buffer[0]: %04X",buffer[0]);
 
 	// Change source addr from IED to RPi
-	inet_pton(AF_INET, "192.168.3.1", &(ip->ip_src));	
+		
 
 
 	memset(&sin, 0, sizeof(struct sockaddr_in));
@@ -248,7 +270,7 @@ void* receiverThread(void *vargp){
 
 void senderThread(){
 	printf("%s\n",iedSideI);
-	
+		
 	pcap_t *handler;
 	handler = pcap_open_live(iedSideI, BUFSIZ, 1, 1000, errbuf1);
 
@@ -271,14 +293,96 @@ void senderThread(){
 
 int main(int argc, char** argv){
 
+	/* Pre-configuration 
+		- Getting interfaces IPv4 Addresses 
+	*/
 
-	pthread_t treceiver_id;
+	// Allocate necessary memory - change to aux function
+	iedSideI_addr = (char*)malloc(INET_ADDRSTRLEN * sizeof(char));
+	netSideI_addr = (char*)malloc(INET_ADDRSTRLEN * sizeof(char));
+
+	// Zero strings
+	memset(iedSideI_addr, 0 * INET_ADDRSTRLEN * sizeof(char));
+	memset(netSideI_addr, 0 * INET_ADDRSTRLEN * sizeof(char));
+
+	// Getting Linked List of interfaces and respective info
+	struct ifaddrs *ifaddr, *tmp;
+	int s, family;
+	char host[NI_MAXHOST];
+
+	if(getifaddrs(&ifaddr) == -1){
+		perror(getifaddrs);
+		exit(1);
+	}
+
+	// Look for our interfaces - ifname in global variables
+	for(tmp = ifaddr; tmp != NULL; tmp = tmp->ifa_next){
+		if(strcmp(tmp->ifa_name,iedSideI) == 0){
+			// IedSide Interface
+			if(tmp->ifa_addr == NULL){
+				// IP address not assigned -> ERROR 
+				perror("Interface %s: Ip address not assigned.", iedSideI);
+				exit(1);
+			}
+
+			family = tmp->ifa_addr->sa_family;
+
+			s = getnameinfo(tmp->ifa_addr,
+				(family == AF_INET) ? sizeof(struct sockaddr_in) :
+									  sizeof(struct sockaddr_in6),
+				host, NI_MAXHOST,
+				NULL, 0, NI_NUMERICHOST);
+
+			if(s != 0){
+				perror("getnameinfo() error");
+				exit(1);
+			}
+
+			strcpy(iedSideI_addr, host);
+			printf("Interface %s: %s\n", iedSideI, iedSideI_addr);
+
+		}else if(strcmp(tmp->ifa_name,netSideI) == 0){
+			// NetSIde Interface
+						// IedSide Interface
+			if(tmp->ifa_addr == NULL){
+				// IP address not assigned -> ERROR 
+				perror("Interface %s: Ip address not assigned.", netSideI);
+				exit(1);
+			}
+
+			family = tmp->ifa_addr->sa_family;
+
+			s = getnameinfo(tmp->ifa_addr,
+				(family == AF_INET) ? sizeof(struct sockaddr_in) :
+									  sizeof(struct sockaddr_in6),
+				host, NI_MAXHOST,
+				NULL, 0, NI_NUMERICHOST);
+
+			if(s != 0){
+				perror("getnameinfo() error");
+				exit(1);
+			}
+
+			strcpy(netSideI_addr, host);
+			printf("Interface %s: %s\n", netSideI, netSideI_addr);
+
+		}else{
+			// Irrelevant Interface
+			continue;
+		}
+	} 
+
+
+
+
+
+	//pthread_t treceiver_id;
 
 	// IED <- RPi <- Network;
-	pthread_create(&treceiver_id, NULL, receiverThread, (void*)&treceiver_id);
+	//pthread_create(&treceiver_id, NULL, receiverThread, (void*)&treceiver_id);
 
 	// IED -> RPi -> Network
-	senderThread();
+	//senderThread();
 
 	
 }
