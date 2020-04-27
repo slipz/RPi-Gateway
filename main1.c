@@ -350,8 +350,8 @@ processPacket_Ied_to_Net(u_char* args, const struct pcap_pkthdr* header, const u
 
 
 	// Transmit packet on eth1 (External Network Interface)
-	//sendPacketLayer3_IED_NET(packet, header->len, netSideI, netSideI_addr);
-	sendPacketLayer2(packet, header->len, netSideI);
+	sendPacketLayer3_IED_NET(packet, header->len, netSideI, netSideI_addr);
+	//sendPacketLayer2(packet, header->len, netSideI);
 
 	clock_gettime(CLOCK_MONOTONIC, &end);
 	uint64_t timeElapsed = timespecDiff(&end, &start);
@@ -395,8 +395,8 @@ processPacket_Net_to_Ied(u_char* args, const struct pcap_pkthdr* header, const u
 		printf( "\n%d bytes read\n-------\n", n );
 
 	// Transmit to internal network -> IED 
-	//sendPacketLayer3_NET_IED(packet, header->len, iedSideI, ied_ip_addr);
-	sendPacketLayer2(packet, header->len, iedSideI);
+	sendPacketLayer3_NET_IED(packet, header->len, iedSideI, ied_ip_addr);
+	//sendPacketLayer2(packet, header->len, iedSideI);
 
 	clock_gettime(CLOCK_MONOTONIC, &end);
 	uint64_t timeElapsed = timespecDiff(&end, &start);
