@@ -13,6 +13,9 @@
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 #include <linux/if_link.h>
+#include <net/ethernet.h>
+#include <linux/if_ether.h>
+#include <linux/if_packet.h>
 
 #include <pthread.h>
 #include <unistd.h>
@@ -187,15 +190,7 @@ void sendPacketLayer3_IED_NET(unsigned char* buffer, size_t size, char* interfac
 
 	/* For now, if it is not IPv4, drop packet */
 	else {
-		
-
-
 	}
-
-
-	
-
-
 }
 
 void sendPacketLayer3_NET_IED(unsigned char* buffer, size_t size, char* interface, char* ied_ip_addr){
@@ -272,15 +267,50 @@ void sendPacketLayer3_NET_IED(unsigned char* buffer, size_t size, char* interfac
 
 	/* For now, if it is not IPv4, drop packet */
 	else {
-		
-
-
 	}
+}
+
+void sendPacketLayer2(unsigned char* buffer, size_t size, char* interface){
+
+	int sd, bytes;
+
+	struct sockaddr_ll device;
+
+	/* Manipulate packet */
+	struct ethernet_header* ethernet;
+	char* payload;
+
+	// Populate auxiliar structs
+	ethernet = (struct ethernet_header*)(buffer);
+	payload = (u_char*)(buffer + SIZE_ETHERNET);
 
 
-	
+	if(ethernet->ether_type == 8){
 
+		memset (&device, 0, sizeof (device));
+		if ((device.sll_ifindex = if_nametoindex (interface)) == 0) {
+		  perror ("if_nametoindex() failed to obtain interface index ");
+		  exit (EXIT_FAILURE);
+		}
 
+		device.sll_family = AF_PACKET;
+		memcpy (device.sll_addr, ethernet->ether_dhost, 6 * sizeof (uint8_t));
+		device.sll_halen = 6;
+
+		// Submit request for a raw socket descriptor.
+		if ((sd = socket (PF_PACKET, SOCK_RAW, htons (ETH_P_ALL))) < 0) {
+		  perror ("socket() failed ");
+		  exit (EXIT_FAILURE);
+		}		
+
+		// Send ethernet frame to socket.
+		if ((bytes = sendto (sd, buffer, size, 0, (struct sockaddr *) &device, sizeof (device))) <= 0) {
+		  perror ("sendto() failed");
+		  exit (EXIT_FAILURE);
+		}
+
+		close(sd);
+	}
 }
 
 
@@ -319,10 +349,9 @@ processPacket_Ied_to_Net(u_char* args, const struct pcap_pkthdr* header, const u
 
 
 
-	
-
 	// Transmit packet on eth1 (External Network Interface)
-	sendPacketLayer3_IED_NET(packet, header->len, netSideI, netSideI_addr);
+	//sendPacketLayer3_IED_NET(packet, header->len, netSideI, netSideI_addr);
+	sendPacketLayer2(packet, header->len, netSideI);
 
 	clock_gettime(CLOCK_MONOTONIC, &end);
 	uint64_t timeElapsed = timespecDiff(&end, &start);
@@ -366,7 +395,8 @@ processPacket_Net_to_Ied(u_char* args, const struct pcap_pkthdr* header, const u
 		printf( "\n%d bytes read\n-------\n", n );
 
 	// Transmit to internal network -> IED 
-	sendPacketLayer3_NET_IED(packet, header->len, iedSideI, ied_ip_addr);
+	//sendPacketLayer3_NET_IED(packet, header->len, iedSideI, ied_ip_addr);
+	sendPacketLayer2(packet, header->len, iedSideI);
 
 	clock_gettime(CLOCK_MONOTONIC, &end);
 	uint64_t timeElapsed = timespecDiff(&end, &start);
@@ -374,7 +404,7 @@ processPacket_Net_to_Ied(u_char* args, const struct pcap_pkthdr* header, const u
   	long seconds = end.tv_sec - start.tv_sec;
   	long ns = end.tv_nsec - start.tv_nsec;
 
-  	printf("sendPacketLayer3_IED_NET secs: %lf\n",(double)seconds + (double)ns/(double)1000000000);
+  	printf("sendPacketLayer3_NET_IED secs: %lf\n",(double)seconds + (double)ns/(double)1000000000);
 
 
 
