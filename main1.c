@@ -286,6 +286,10 @@ void sendPacketLayer3_NET_IED(unsigned char* buffer, size_t size, char* interfac
 
 void
 processPacket_Ied_to_Net(u_char* args, const struct pcap_pkthdr* header, const u_char* packet){
+	
+	struct timespec start, end;
+  	clock_gettime(CLOCK_MONOTONIC, &start);
+
 	unsigned char	ch;
 
 	printf( "\npacket\n");
@@ -315,8 +319,7 @@ processPacket_Ied_to_Net(u_char* args, const struct pcap_pkthdr* header, const u
 
 
 
-	struct timespec start, end;
-  	clock_gettime(CLOCK_MONOTONIC, &start);
+	
 
 	// Transmit packet on eth1 (External Network Interface)
 	sendPacketLayer3_IED_NET(packet, header->len, netSideI, netSideI_addr);
@@ -335,6 +338,9 @@ processPacket_Ied_to_Net(u_char* args, const struct pcap_pkthdr* header, const u
 
 void
 processPacket_Net_to_Ied(u_char* args, const struct pcap_pkthdr* header, const u_char* packet){
+	struct timespec start, end;
+  	clock_gettime(CLOCK_MONOTONIC, &start);
+
 	unsigned char	ch;
 
 	printf( "\npacket\n");
@@ -361,6 +367,16 @@ processPacket_Net_to_Ied(u_char* args, const struct pcap_pkthdr* header, const u
 
 	// Transmit to internal network -> IED 
 	sendPacketLayer3_NET_IED(packet, header->len, iedSideI, ied_ip_addr);
+
+	clock_gettime(CLOCK_MONOTONIC, &end);
+	uint64_t timeElapsed = timespecDiff(&end, &start);
+
+  	long seconds = end.tv_sec - start.tv_sec;
+  	long ns = end.tv_nsec - start.tv_nsec;
+
+  	printf("sendPacketLayer3_IED_NET secs: %lf\n",(double)seconds + (double)ns/(double)1000000000);
+
+
 
 }
 
