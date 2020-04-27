@@ -89,6 +89,13 @@ void sendPacketLayer3_IED_NET(unsigned char* buffer, size_t size, char* interfac
 void sendPacketLayer3_NET_IED(unsigned char* buffer, size_t size, char* interface, char* ied_ip_addr);
 
 
+int64_t timespecDiff(struct timespec *timeA_p, struct timespec *timeB_p)
+{
+  return ((timeA_p->tv_sec * 1000000000) + timeA_p->tv_nsec) -
+           ((timeB_p->tv_sec * 1000000000) + timeB_p->tv_nsec);
+}
+
+
 /* ---------------------------------------------------------- */
 
 void
@@ -308,10 +315,19 @@ processPacket_Ied_to_Net(u_char* args, const struct pcap_pkthdr* header, const u
 
 
 
-
+	struct timespec start, end;
+  	clock_gettime(CLOCK_MONOTONIC, &start);
 
 	// Transmit packet on eth1 (External Network Interface)
 	sendPacketLayer3_IED_NET(packet, header->len, netSideI, netSideI_addr);
+
+	clock_gettime(CLOCK_MONOTONIC, &end);
+	uint64_t timeElapsed = timespecDiff(&end, &start);
+
+  	long seconds = end.tv_sec - start.tv_sec;
+  	long ns = end.tv_nsec - start.tv_nsec;
+
+  	printf("sendPacketLayer3_IED_NET secs: %lf\n",(double)seconds + (double)ns/(double)1000000000);
 
 
 }
