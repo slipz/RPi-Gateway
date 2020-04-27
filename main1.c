@@ -285,7 +285,7 @@ void sendPacketLayer2(unsigned char* buffer, size_t size, char* interface){
 	payload = (u_char*)(buffer + SIZE_ETHERNET);
 
 
-	if(ethernet->ether_type == 8){
+//	if(ethernet->ether_type == 8){
 
 		memset (&device, 0, sizeof (device));
 		if ((device.sll_ifindex = if_nametoindex (interface)) == 0) {
@@ -310,7 +310,7 @@ void sendPacketLayer2(unsigned char* buffer, size_t size, char* interface){
 		}
 
 		close(sd);
-	}
+//	}
 }
 
 
