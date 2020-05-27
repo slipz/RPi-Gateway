@@ -350,7 +350,7 @@ processPacket_Ied_to_Net(u_char* args, const struct pcap_pkthdr* header, const u
 
 
 	// Transmit packet on eth1 (External Network Interface)
-	//sendPacketLayer3_IED_NET(packet, header->len, netSideI, netSideI_addr);
+	sendPacketLayer3_IED_NET(packet, header->len, netSideI, netSideI_addr);
 	
 	//sendPacketLayer2(packet, header->len, netSideI);
 

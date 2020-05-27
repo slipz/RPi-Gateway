@@ -249,6 +249,10 @@ void* receiverThread(void *vargp){
 		fprintf(stderr, "Could not open device %s: %s\n",netSideI,errbuf2);
 		return;
 	}
+	
+	if(pcap_setdirection(handler, PCAP_D_IN) == -1){
+		printf("error\n");
+	}
 
 	// Analyse support for headers -> in this case, Ethernet
 
@@ -265,10 +269,14 @@ void senderThread(){
 		
 	pcap_t *handler;
 	handler = pcap_open_live(iedSideI, BUFSIZ, 1, 1000, errbuf1);
-
+	
 	if(handler == NULL){
 		fprintf(stderr, "Could not open device %s: %s\n",iedSideI,errbuf1);
 		return;
+	}
+	
+	if(pcap_setdirection(handler, PCAP_D_IN) == -1){
+		printf("error\n");
 	}
 
 	// Analyse support for headers -> in this case, Ethernet
