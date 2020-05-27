@@ -1,7 +1,4 @@
-/* 
-	Raspberry Pi Security Gateway
-	Ensure integrity properties on R-GOOSE Message
-*/
+//gcc -Wall main2.c security_extension.c -o a.out -lssl -lcrypto -lpthread -lpcap
 
 #define _GNU_SOURCE
 
@@ -75,6 +72,7 @@ char errbuf2[PCAP_ERRBUF_SIZE];
 
 int max_packets = 1000;
 
+
 void
 processPacket_Ied_to_Net(u_char* args, const struct pcap_pkthdr* header, const u_char* packet);
 
@@ -87,10 +85,6 @@ transmitPacket();
 uint16_t 
 checksum (uint16_t *addr, int len);
 
-void sendPacketLayer3_IED_NET(unsigned char* buffer, size_t size, char* interface, char* if_ip_addr);
-
-void sendPacketLayer3_NET_IED(unsigned char* buffer, size_t size, char* interface, char* ied_ip_addr);
-
 
 int64_t timespecDiff(struct timespec *timeA_p, struct timespec *timeB_p)
 {
@@ -98,177 +92,6 @@ int64_t timespecDiff(struct timespec *timeA_p, struct timespec *timeB_p)
            ((timeB_p->tv_sec * 1000000000) + timeB_p->tv_nsec);
 }
 
-
-/* ---------------------------------------------------------- */
-
-void
-transmitPacket(){
-
-	int raw_sd;
-
-	/*if((raw_sd = socket(AF_PA))){
-
-	}*/
-
-
-
-
-}
-
-
-void sendPacketLayer3_IED_NET(unsigned char* buffer, size_t size, char* interface, char* if_ip_addr){
-
-	int raw_sd, status;
-	const int on = 1;
-
-	struct ifreq ifr;
-	struct sockaddr_in sin;
-
-	memset(&ifr, 0, sizeof(ifr));
-	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", interface);
-
-	
-	/* Manipulate packet */
-	struct ethernet_header* ethernet;
-	struct ip_header* ip;
-	char* payload;
-
-	// Populate auxiliar structs
-	ethernet = (struct ethernet_header*)(buffer);
-	ip = (struct ip_header*)(buffer + SIZE_ETHERNET);
-	u_int size_ip = IP_HL(ip)*4;
-	payload = (u_char*)(buffer + SIZE_ETHERNET + size_ip);
-
-
-	printf("\ntype: %u\n",ethernet->ether_type);
-	
-	/* Check EtherType - 0x0800 -> IPv4 */
-	if(ethernet->ether_type == 8){
-
-		/* IED -> NET 
-			- Change source IPv4 addr (ip->ip_src) to RPi addr
-		*/ 
-		if((status = inet_pton(AF_INET, if_ip_addr, &(ip->ip_src))) != 1){
-			fprintf(stderr, "inet_pton() failed: %s\n",strerror(status));
-			exit(1);
-		}
-
-		// Recalculate IPv4 Header checksum
-		ip->ip_sum = 0;
-		ip->ip_sum = checksum((uint16_t*)&ip, IP4_HDRLEN);
-
-		memset(&sin, 0, sizeof(struct sockaddr_in));
-		sin.sin_family = AF_INET;
-		sin.sin_addr.s_addr = ip->ip_dst.s_addr;
-
-
-		if((raw_sd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0){
-			perror("socket() failed");
-			exit(1);
-		}
-
-		if(setsockopt(raw_sd, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) < 0){
-			perror("2nd error");
-			exit(1);
-		}
-
-		if(setsockopt(raw_sd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, sizeof(ifr)) < 0){
-			perror("3rd error");
-			exit(1);
-		}
-
-		buffer = buffer + 14;
-
-		if(sendto(raw_sd, buffer, size-14, 0, (struct sockaddr*)&sin, sizeof(struct sockaddr)) < 0){
-			perror("4th error");
-			exit(1);
-		}
-
-		close(raw_sd);
-
-	}
-
-	/* For now, if it is not IPv4, drop packet */
-	else {
-	}
-}
-
-void sendPacketLayer3_NET_IED(unsigned char* buffer, size_t size, char* interface, char* ied_ip_addr){
-
-	int raw_sd, status;
-	const int on = 1;
-
-	struct ifreq ifr;
-	struct sockaddr_in sin;
-
-	memset(&ifr, 0, sizeof(ifr));
-	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", interface);
-
-	
-	/* Manipulate packet */
-	struct ethernet_header* ethernet;
-	struct ip_header* ip;
-	char* payload;
-
-	// Populate auxiliar structs
-	ethernet = (struct ethernet_header*)(buffer);
-	ip = (struct ip_header*)(buffer + SIZE_ETHERNET);
-	u_int size_ip = IP_HL(ip)*4;
-	payload = (u_char*)(buffer + SIZE_ETHERNET + size_ip);
-
-
-	printf("\ntype: %u\n",ethernet->ether_type);
-	
-	/* Check EtherType - 0x0800 -> IPv4 */
-	if(ethernet->ether_type == 8){
-
-		/* NET -> IED 
-			- Change dest IPv4 addr (ip->ip_dst) to IED addr
-		*/ 
-		if((status = inet_pton(AF_INET, ied_ip_addr, &(ip->ip_dst))) != 1){
-			fprintf(stderr, "inet_pton() failed: %s\n",strerror(status));
-			exit(1);
-		}
-
-		// Recalculate IPv4 Header checksum
-		ip->ip_sum = 0;
-		ip->ip_sum = checksum((uint16_t*)&ip, IP4_HDRLEN);
-
-		memset(&sin, 0, sizeof(struct sockaddr_in));
-		sin.sin_family = AF_INET;
-		sin.sin_addr.s_addr = ip->ip_dst.s_addr;
-
-
-		if((raw_sd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0){
-			perror("socket() failed");
-			exit(1);
-		}
-
-		if(setsockopt(raw_sd, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) < 0){
-			perror("2nd error");
-			exit(1);
-		}
-
-		if(setsockopt(raw_sd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, sizeof(ifr)) < 0){
-			perror("3rd error");
-			exit(1);
-		}
-
-		buffer = buffer + 14;
-
-		if(sendto(raw_sd, buffer, size-14, 0, (struct sockaddr*)&sin, sizeof(struct sockaddr)) < 0){
-			perror("4th error");
-			exit(1);
-		}
-
-		close(raw_sd);
-
-	}
-
-	/* For now, if it is not IPv4, drop packet */
-	else {
-	}
-}
 
 void sendPacketLayer2(unsigned char* buffer, size_t size, char* interface){
 
@@ -314,6 +137,12 @@ void sendPacketLayer2(unsigned char* buffer, size_t size, char* interface){
 }
 
 
+
+
+
+
+
+
 void
 processPacket_Ied_to_Net(u_char* args, const struct pcap_pkthdr* header, const u_char* packet){
 	
@@ -349,10 +178,8 @@ processPacket_Ied_to_Net(u_char* args, const struct pcap_pkthdr* header, const u
 
 
 
-	// Transmit packet on eth1 (External Network Interface)
-	//sendPacketLayer3_IED_NET(packet, header->len, netSideI, netSideI_addr);
-	
-	//sendPacketLayer2(packet, header->len, netSideI);
+	// Transmit packet on eth1 (External Network Interface)	
+	sendPacketLayer2(packet, header->len, netSideI);
 
 	clock_gettime(CLOCK_MONOTONIC, &end);
 	uint64_t timeElapsed = timespecDiff(&end, &start);
@@ -360,7 +187,7 @@ processPacket_Ied_to_Net(u_char* args, const struct pcap_pkthdr* header, const u
   	long seconds = end.tv_sec - start.tv_sec;
   	long ns = end.tv_nsec - start.tv_nsec;
 
-  	printf("sendPacketLayer3_IED_NET secs: %lf\n",(double)seconds + (double)ns/(double)1000000000);
+  	printf("sendPacketLayer2_IED_NET secs: %lf\n",(double)seconds + (double)ns/(double)1000000000);
 
 
 }
@@ -396,8 +223,7 @@ processPacket_Net_to_Ied(u_char* args, const struct pcap_pkthdr* header, const u
 		printf( "\n%d bytes read\n-------\n", n );
 
 	// Transmit to internal network -> IED 
-	sendPacketLayer3_NET_IED(packet, header->len, iedSideI, ied_ip_addr);
-	//sendPacketLayer2(packet, header->len, iedSideI);
+	sendPacketLayer2(packet, header->len, iedSideI);
 
 	clock_gettime(CLOCK_MONOTONIC, &end);
 	uint64_t timeElapsed = timespecDiff(&end, &start);
@@ -405,7 +231,7 @@ processPacket_Net_to_Ied(u_char* args, const struct pcap_pkthdr* header, const u
   	long seconds = end.tv_sec - start.tv_sec;
   	long ns = end.tv_nsec - start.tv_nsec;
 
-  	printf("sendPacketLayer3_NET_IED secs: %lf\n",(double)seconds + (double)ns/(double)1000000000);
+  	printf("sendPacketLayer2_NET_IED secs: %lf\n",(double)seconds + (double)ns/(double)1000000000);
 
 
 
@@ -434,7 +260,6 @@ void* receiverThread(void *vargp){
 }
 
 
-
 void senderThread(){
 	printf("%s\n",iedSideI);
 		
@@ -456,37 +281,6 @@ void senderThread(){
 
 }
 
-// Computing the internet checksum (RFC 1071).
-// Note that the internet checksum does not preclude collisions.
-uint16_t checksum (uint16_t *addr, int len)
-{
-  int count = len;
-  register uint32_t sum = 0;
-  uint16_t answer = 0;
-
-  // Sum up 2-byte values until none or only one byte left.
-  while (count > 1) {
-    sum += *(addr++);
-    count -= 2;
-  }
-
-  // Add left-over byte, if any.
-  if (count > 0) {
-    sum += *(uint8_t *) addr;
-  }
-
-  // Fold 32-bit sum into 16 bits; we lose information by doing this,
-  // increasing the chances of a collision.
-  // sum = (lower 16 bits) + (upper 16 bits shifted right 16 bits)
-  while (sum >> 16) {
-    sum = (sum & 0xffff) + (sum >> 16);
-  }
-
-  // Checksum is one's compliment of sum.
-  answer = ~sum;
-
-  return (answer);
-}
 
 
 
@@ -589,6 +383,3 @@ int main(int argc, char** argv){
 
 	
 }
-
-
-
