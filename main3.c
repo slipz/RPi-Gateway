@@ -98,15 +98,22 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
     int ret = nfq_get_payload(nfa, &buf);
 
-    int index = 20;    
+    int index = 9;      // IP Header Protocol Field
 
-    printf("buf[20] = %02x\n",buf[20]);
+    if(buf[index] == 0x11){
+        // Protocol == UDP
+        printf("Protocol: UDP\n");
+        index = 20;         // IP Header End -> Init next protocol
+        index += 8;         // UDP Payload
+    }else if(buf[index] == 0x06){
+        printf("Protocol: TCP\n");
+    }else if(buf[index] == 0x01){
+        printf("Protocol: ICMP\n");
+    }
+    
 
 
-
-
-
-
+    //printf("buf[20] = %02x\n",buf[20]);
 
 
 
