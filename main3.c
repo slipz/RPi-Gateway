@@ -7,6 +7,29 @@
 #include <libnetfilter_queue/libnetfilter_queue.h>
 
 
+void display_packet( char *buf, int n )
+{
+    unsigned char   ch;
+
+    printf( "\npacket #%d ", ++pkt_num );
+    for (int i = 0; i < n; i+=16)
+        {
+        printf( "\n%04X: ", i );
+        for (int j = 0; j < 16; j++)
+            {
+            ch = ( i + j < n ) ? buf[ i+j ] : 0;
+            if ( i + j < n ) printf( "%02X ", ch );
+            else    printf( "   " );
+            }
+        for (int j = 0; j < 16; j++)
+            {
+            ch = ( i + j < n ) ? buf[ i+j ] : ' ';
+            if (( ch < 0x20 )||( ch > 0x7E )) ch = '.';
+            printf( "%c", ch );
+            }
+        }
+    printf( "\n%d bytes read\n-------\n", n );
+}
 
 
 static u_int32_t print_pkt (struct nfq_data *tb)
@@ -57,8 +80,9 @@ static u_int32_t print_pkt (struct nfq_data *tb)
     ret = nfq_get_payload(tb, &data);
     if (ret >= 0) {
         printf("payload_len=%d ", ret);
-        //processPacketData (data, ret);
+        display_packet(data,ret);
     }
+
     fputc('\n', stdout);
 
     return id;
