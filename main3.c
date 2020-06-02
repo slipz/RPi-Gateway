@@ -6,6 +6,8 @@
 #include <linux/netfilter.h>        
 #include <libnetfilter_queue/libnetfilter_queue.h>
 
+#include "r_goose_security.h"
+
 
 void display_packet( char *buf, int n )
 {
@@ -91,20 +93,27 @@ static u_int32_t print_pkt (struct nfq_data *tb)
 
 static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *nfa, void *data)
 {
-//  u_int32_t id = print_pkt(nfa);
     u_int32_t id;
     char* buf;
 
-    int ret = nfq_get_payload(tb, &buf);
+    int ret = nfq_get_payload(nfa, &buf);
 
-    buf[29] = 0x00;
+    int index = 20;    
+
+    printf("buf[20] = %02x\n",buf[20]);
+
+
+
+
+
+
+
+
 
     struct nfqnl_msg_packet_hdr *ph;
     ph = nfq_get_msg_packet_hdr(nfa);   
     id = ntohl(ph->packet_id);
     printf("entering callback\n");
-
-
 
     return nfq_set_verdict(qh, id, NF_ACCEPT, ret, buf);
 }
