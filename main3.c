@@ -11,7 +11,7 @@ void display_packet( char *buf, int n )
 {
     unsigned char   ch;
 
-    printf( "\npacket #%d ", ++pkt_num );
+//    printf( "\npacket #%d ", ++pkt_num );
     for (int i = 0; i < n; i+=16)
         {
         printf( "\n%04X: ", i );
@@ -93,12 +93,20 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 {
 //  u_int32_t id = print_pkt(nfa);
     u_int32_t id;
+    char* buf;
 
-        struct nfqnl_msg_packet_hdr *ph;
+    int ret = nfq_get_payload(tb, &buf);
+
+    buf[29] = 0x00;
+
+    struct nfqnl_msg_packet_hdr *ph;
     ph = nfq_get_msg_packet_hdr(nfa);   
     id = ntohl(ph->packet_id);
     printf("entering callback\n");
-    return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+
+
+
+    return nfq_set_verdict(qh, id, NF_ACCEPT, ret, buf);
 }
 
 
