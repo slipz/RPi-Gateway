@@ -195,7 +195,9 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     r_goose_dissect(&tmp[28]);
 
-                    uint16_t checksum = udp_checksum(tmp, ret+MAC_SIZES[HMAC_SHA256_80], );
+                    uint16_t checksum = udp_checksum(tmp, ret+MAC_SIZES[HMAC_SHA256_80],decode_4bytesToInt(tmp,12),decode_4bytesToInt(tmp,16));
+
+                    printf("checksum: %d\n", checksum);
                     
                     encodeInt2Bytes(tmp, checksum, 26);
 
@@ -206,7 +208,7 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
                     // Network -> RPi -> IED
 
 
-
+                    return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
 
                 }else{
                     // Not normal - Suspicious traffic ? DROP or simply ACCEPT?
