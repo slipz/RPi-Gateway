@@ -7,14 +7,22 @@
 #include <libnetfilter_queue/libnetfilter_queue.h>
 
 #include "r_goose_security.h"
+#include "aux_funcs.h"
+
+// Use "ip addr show" to get interface index
+int ied_if_index = 2;
+int network_if_index = 3;
+
+// R-GOOSE UDP Port in use: Default 102
+int r_goose_port = 102;
+
+// Fixed key values ...
+uint8_t* key;
+int key_size;
 
 
-void display_packet( char *buf, int n )
-{
-    unsigned char   ch;
-
-//    printf( "\npacket #%d ", ++pkt_num );
-    for (int i = 0; i < n; i+=16)
+void display_packet( char *buf, int n ){
+    unsigned char   ch;    for (int i = 0; i < n; i+=16)
         {
         printf( "\n%04X: ", i );
         for (int j = 0; j < 16; j++)
@@ -89,40 +97,92 @@ static u_int32_t print_pkt (struct nfq_data *tb)
 
     return id;
 }
-    
+
+
+  
 
 static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *nfa, void *data)
 {
+    printf("entering callback\n");
+
     u_int32_t id;
     char* buf;
-
-    int ret = nfq_get_payload(nfa, &buf);
-
-    int index = 9;      // IP Header Protocol Field
-
-    if(buf[index] == 0x11){
-        // Protocol == UDP
-        printf("Protocol: UDP\n");
-        index = 20;         // IP Header End -> Init next protocol
-        index += 8;         // UDP Payload
-    }else if(buf[index] == 0x06){
-        printf("Protocol: TCP\n");
-    }else if(buf[index] == 0x01){
-        printf("Protocol: ICMP\n");
-    }
-    
-
-
-    //printf("buf[20] = %02x\n",buf[20]);
-
-
 
     struct nfqnl_msg_packet_hdr *ph;
     ph = nfq_get_msg_packet_hdr(nfa);   
     id = ntohl(ph->packet_id);
-    printf("entering callback\n");
+    
+    int ret = nfq_get_payload(nfa, &buf);
 
-    return nfq_set_verdict(qh, id, NF_ACCEPT, ret, buf);
+    int index = 9;      // IP Header Protocol Field
+
+
+
+    if(buf[index] == 0x11){
+        // Protocol == UDP
+        printf("Protocol: UDP\n");
+
+        int udp_length, dest_port;
+
+        index = 20;         // IP Header End -> Init next protocol
+        udp_length = decode_2bytesToInt(buf,index+4);
+        printf("UDP len: %d\n",udp_length);
+
+        index += 2;         // UDP Dest Port
+        dest_port = decode_2bytesToInt(buf,index);
+        printf("dest_port: %d\n", dest_port);
+
+        // Verificar se está correto no ambiente real
+        if(dest_port == r_goose_port){
+            // Packet for R-GOOSE Application
+            index += 6;     // UDP Payload - R-GOOSE
+            if(buf[index] == 0x01 && buf[index+1] == 0x40){
+                // Init Sesstion Header Valid
+
+
+                // Fetching index of physical interface packet arrived
+                u_int32_t iinterface = nfq_get_physindev(nfa);
+
+                if(iinterface == ied_if_index){
+                    // IED -> RPi -> Network
+
+                    uint8_t* dest = NULL;
+                    int res = r_gooseMessage_InsertHMAC(&buf[index], key, key_size, HMAC_SHA256_80, &dest);
+                    uint8_t* tmp = (uint8_t*)malloc((ret*sizeof(uint8_t))+MAC_SIZES[HMAC_SHA256_80]);
+                    memcpy(tmp,buf,28);
+                    memcpy(&tmp[28], dest, ret-28+MAC_SIZES[HMAC_SHA256_80]);
+
+                    r_goose_dissect(tmp);
+
+
+                    return nfq_set_verdict(qh, id, NF_ACCEPT, ret+MAC_SIZES[HMAC_SHA256_80], tmp);
+
+
+                }else if(iinterface == network_if_index){
+                    // Network -> RPi -> IED
+
+
+
+
+                }else{
+                    // Not normal - Suspicious traffic ? DROP or simply ACCEPT?
+                    return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+                }
+            }else{
+                // Not for R-GOOSE 
+                return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+            }
+        }else{
+            // Not for R-GOOSE 
+            return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+        }
+
+    // Else if could be changed to single else
+    }else{
+        printf("Protocol: %02x\n", buf[index]);
+        return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+    }
+    
 }
 
 
@@ -134,6 +194,11 @@ int main(int argc, char **argv)
     int fd;
     int rv;
     char buf[4096] __attribute__ ((aligned));
+    
+    char keyHex[] = "11754cd72aec309bf52f7687212e8957";
+    key = hexStringToBytes(keyHex, 32);
+    key_size = 16;
+
 
     printf("opening library handle\n");
     h = nfq_open();
@@ -189,6 +254,8 @@ int main(int argc, char **argv)
 
     printf("closing library handle\n");
     nfq_close(h);
+
+    free(key);
 
     exit(0);
 }
