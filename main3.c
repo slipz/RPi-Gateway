@@ -20,6 +20,89 @@ int r_goose_port = 102;
 uint8_t* key;
 int key_size;
 
+#define PCKT_LEN 8192
+#define FLAG_R 0x8400
+#define FLAG_Q 0x0100
+ 
+
+
+// Can create separate header file (.h) for all headers' structure
+
+// The IP header's structure
+
+struct ipheader {
+ unsigned char      iph_ihl:4, iph_ver:4;
+
+ unsigned char      iph_tos;
+
+ unsigned short int iph_len;
+
+ unsigned short int iph_ident;
+
+//    unsigned char      iph_flag;
+
+ unsigned short int iph_offset;
+
+ unsigned char      iph_ttl;
+
+ unsigned char      iph_protocol;
+
+ unsigned short int iph_chksum;
+
+ unsigned int       iph_sourceip;
+
+ unsigned int       iph_destip;
+
+};
+
+ 
+
+// UDP header's structure
+
+struct udpheader {
+
+ unsigned short int udph_srcport;
+
+ unsigned short int udph_destport;
+
+ unsigned short int udph_len;
+
+ unsigned short int udph_chksum;
+
+};
+
+unsigned int checksum(uint16_t *usBuff, int isize)
+{
+    unsigned int cksum=0;
+    for(;isize>1;isize-=2){
+        cksum+=*usBuff++;
+    }
+    if(isize==1){
+        cksum+=*(uint16_t *)usBuff;
+    }
+    return (cksum);
+}
+
+uint16_t check_udp_sum(uint8_t *buffer, int len)
+{
+    unsigned long sum=0;
+    struct ipheader *tempI=(struct ipheader *)(buffer);
+    struct udpheader *tempH=(struct udpheader *)(buffer+sizeof(struct ipheader));
+
+    tempH->udph_chksum=0;
+    sum=checksum( (uint16_t *)   &(tempI->iph_sourceip) ,8 );
+    sum+=checksum((uint16_t *) tempH,len);
+
+    sum+=ntohs(IPPROTO_UDP+len);
+    
+    sum=(sum>>16)+(sum & 0x0000ffff);
+    sum+=(sum>>16);
+
+    return (uint16_t)(~sum);
+    
+}
+
+
 uint16_t udp_checksum(const void* buff, size_t len, in_addr_t src_addr, in_addr_t dest_addr){
     
     const uint16_t *buf=buff;
@@ -197,14 +280,13 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     r_goose_dissect(&tmp[28]);
 
-                    tmp[26] = 0x00;
-                    tmp[27] = 0x00;
+                    //uint16_t checksum = udp_checksum(tmp, ret+MAC_SIZES[HMAC_SHA256_80],decode_4bytesToInt(tmp,12),decode_4bytesToInt(tmp,16));
 
-                    uint16_t checksum = udp_checksum(tmp, ret+MAC_SIZES[HMAC_SHA256_80],decode_4bytesToInt(tmp,12),decode_4bytesToInt(tmp,16));
+                    uint16_t checksum = check_udp_sum(tmp, ret - sizeof(struct ipheader));
 
-                    printf("checksum: %d\n", checksum);
-                    
                     encodeInt2Bytes(tmp, checksum, 26);
+
+                    printf("checksum: %02x %02x\n", tmp[26], tmp[27]);
 
                     return nfq_set_verdict(qh, id, NF_ACCEPT, ret+MAC_SIZES[HMAC_SHA256_80], tmp);
 
