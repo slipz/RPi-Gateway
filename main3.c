@@ -20,6 +20,45 @@ int r_goose_port = 102;
 uint8_t* key;
 int key_size;
 
+uint16_t udp_checksum(const void* buff, size_t len, in_addr_t src_addr, in_addr_t dest_addr){
+    
+    const uint16_t *buf=buff;
+    uint16_t *ip_src=(void *)&src_addr, *ip_dst=(void *)&dest_addr;
+    uint32_t sum;
+    size_t length=len;
+
+    // Calculate the sum                                            //
+    sum = 0;
+    while (len > 1)
+    {
+         sum += *buf++;
+         if (sum & 0x80000000)
+                 sum = (sum & 0xFFFF) + (sum >> 16);
+         len -= 2;
+    }
+
+    if ( len & 1 )
+         // Add the padding if the packet lenght is odd          //
+         sum += *((uint8_t *)buf);
+
+    // Add the pseudo-header                                        //
+    sum += *(ip_src++);
+    sum += *ip_src;
+
+    sum += *(ip_dst++);
+    sum += *ip_dst;
+
+    sum += htons(IPPROTO_UDP);
+    sum += htons(length);
+
+    // Add the carries                                              //
+    while (sum >> 16)
+         sum = (sum & 0xFFFF) + (sum >> 16);
+
+    // Return the one's complement of sum                           //
+    return ( (uint16_t)(~sum)  );
+}
+
 
 void display_packet( char *buf, int n ){
     unsigned char   ch;    for (int i = 0; i < n; i+=16)
@@ -152,8 +191,13 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
                     memcpy(tmp,buf,28);
                     memcpy(&tmp[28], dest, ret-28+MAC_SIZES[HMAC_SHA256_80]);
 
-                    r_goose_dissect(tmp);
+                    encodeInt2Bytes(tmp, udp_length+MAC_SIZES[HMAC_SHA256_80], 24);
 
+                    r_goose_dissect(&tmp[28]);
+
+                    uint16_t checksum = udp_checksum(tmp, ret+MAC_SIZES[HMAC_SHA256_80], );
+                    
+                    encodeInt2Bytes(tmp, checksum, 26);
 
                     return nfq_set_verdict(qh, id, NF_ACCEPT, ret+MAC_SIZES[HMAC_SHA256_80], tmp);
 
