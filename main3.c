@@ -193,6 +193,8 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     encodeInt2Bytes(tmp, udp_length+MAC_SIZES[HMAC_SHA256_80], 24);
 
+                    encodeInt2Bytes(tmp, ret+MAC_SIZES[HMAC_SHA256_80], 24)
+
                     r_goose_dissect(&tmp[28]);
 
                     uint16_t checksum = udp_checksum(tmp, ret+MAC_SIZES[HMAC_SHA256_80],decode_4bytesToInt(tmp,12),decode_4bytesToInt(tmp,16));
