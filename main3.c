@@ -324,7 +324,8 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
 
 
-    if(buf[index] == 0x11){
+    //if(buf[index] == 0x11){
+    if(buf[index] == 0x01){
         // Protocol == UDP
         printf("Protocol: UDP\n");
 
@@ -373,7 +374,6 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
                     //uint16_t checksum = check_udp_sum(tmp, ret - sizeof(struct ipheader));
 
                     
-
                     struct iphdr *ip = (struct iphdr *)tmp; 
                     struct udphdr *udp = (struct udphdr *)((void *) ip + sizeof(struct iphdr));
 
@@ -387,7 +387,8 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     printf("checksum: %02x %02x\n", tmp[26], tmp[27]);
 
-                    return nfq_set_verdict(qh, id, NF_ACCEPT, ret+MAC_SIZES[HMAC_SHA256_80], tmp);
+                    //return nfq_set_verdict(qh, id, NF_ACCEPT, ret+MAC_SIZES[HMAC_SHA256_80], tmp);
+                    return nfq_set_verdict(qh, id, NF_ACCEPT, ret, buf);
 
 
                 }else if(iinterface == network_if_index){
