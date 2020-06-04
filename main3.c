@@ -343,7 +343,9 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     //uint16_t checksum = check_udp_sum(tmp, ret - sizeof(struct ipheader));
 
-                    struct iphdr *ip = (struct iphdr *)buf; 
+                    
+
+                    struct iphdr *ip = (struct iphdr *)tmp; 
                     struct udphdr *udp = (struct udphdr *)((void *) ip + sizeof(struct iphdr));
 
                     udp->check = 0;
