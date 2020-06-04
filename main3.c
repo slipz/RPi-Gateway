@@ -73,12 +73,6 @@ struct udpheader {
 
 };
 
-
-/* set ip checksum of a given ip header*/
-void compute_ip_checksum(struct iphdr* iphdrp){
-  iphdrp->check = 0;
-  iphdrp->check = compute_checksum((unsigned short*)iphdrp, iphdrp->ihl<<2);
-}
 /* Compute checksum for count bytes starting at addr, using one's complement of one's complement sum*/
 static unsigned short compute_checksum(unsigned short *addr, unsigned int count) {
   register unsigned long sum = 0;
@@ -98,6 +92,13 @@ static unsigned short compute_checksum(unsigned short *addr, unsigned int count)
   sum = ~sum;
   return ((unsigned short)sum);
 }
+
+/* set ip checksum of a given ip header*/
+void compute_ip_checksum(struct iphdr* iphdrp){
+  iphdrp->check = 0;
+  iphdrp->check = compute_checksum((unsigned short*)iphdrp, iphdrp->ihl<<2);
+}
+
 
 
 
