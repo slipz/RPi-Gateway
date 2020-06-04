@@ -294,6 +294,9 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
     int index = 9;      // IP Header Protocol Field
 
 
+
+
+
     if(buf[index] == 0x11){
         // Protocol == UDP
         printf("Protocol: UDP\n");
@@ -322,6 +325,8 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
                 if(iinterface == ied_if_index){
                     // IED -> RPi -> Network
 
+                    
+
                     uint8_t* dest = NULL;
                     int res = r_gooseMessage_InsertHMAC(&buf[index], key, key_size, HMAC_SHA256_80, &dest);
                     uint8_t* tmp = (uint8_t*)malloc((ret*sizeof(uint8_t))+MAC_SIZES[HMAC_SHA256_80]);
@@ -340,13 +345,12 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     
 
-
                     struct iphdr *ip = (struct iphdr *)tmp; 
                     struct udphdr *udp = (struct udphdr *)((void *) ip + sizeof(struct iphdr));
 
                     udp->check = 0;
 
-                    uint16_t checksum = htons(udp_checksum(ip,udp, udp));
+                    uint16_t checksum = udp_checksum(ip,udp, udp);
 
                     encodeInt2Bytes(tmp, checksum, 26);
 
