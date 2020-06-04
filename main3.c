@@ -352,7 +352,7 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     udp->check = 0;
 
-                    uint16_t checksum = udp_checksum(ip,udp, udp);
+                    uint16_t checksum = htons(udp_checksum(ip,udp, udp));
 
                     encodeInt2Bytes(tmp, checksum, 26);
 
