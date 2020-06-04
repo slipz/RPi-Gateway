@@ -343,14 +343,14 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
         //if(dest_port == r_goose_port){
             // Packet for R-GOOSE Application
             index += 6;     // UDP Payload - R-GOOSE
-            if(buf[index] == 0x01 && buf[index+1] == 0x40){
+            //if(buf[index] == 0x01 && buf[index+1] == 0x40){
                 // Init Sesstion Header Valid
 
 
                 // Fetching index of physical interface packet arrived
                 u_int32_t iinterface = nfq_get_physindev(nfa);
 
-                if(iinterface == ied_if_index){
+                //if(iinterface == ied_if_index){
                     // IED -> RPi -> Network
 
                     
@@ -391,23 +391,23 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
                     return nfq_set_verdict(qh, id, NF_ACCEPT, ret, buf);
 
 
-                }else if(iinterface == network_if_index){
+                //}else if(iinterface == network_if_index){
                     // Network -> RPi -> IED
 
 
-                    return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+                    //return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
 
-                }else{
+                //}else{
                     // Not normal - Suspicious traffic ? DROP or simply ACCEPT?
-                    return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
-                }
-            }else{
+                    //return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+                //}
+            //}else{
                 // Not for R-GOOSE 
-                return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
-            }
+                //return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+            //}
         //}else{
             // Not for R-GOOSE 
-            return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+            //return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
         //}
 
     // Else if could be changed to single else
