@@ -5,6 +5,8 @@
 #include <linux/types.h>
 #include <linux/netfilter.h>        
 #include <libnetfilter_queue/libnetfilter_queue.h>
+#include <netinet/ip.h>
+#include <netinet/udp.h>
 
 #include "r_goose_security.h"
 #include "aux_funcs.h"
@@ -71,7 +73,60 @@ struct udpheader {
 
 };
 
-unsigned int checksum(uint16_t *usBuff, int isize)
+
+
+//based on snippet found
+//www.linuxquestions.org/questions/linux-networking-3/udp-checksum-algorithm-845618/
+//then modified by Gabriel Serme
+
+struct pseudo_hdr {
+    u_int32_t source;
+    u_int32_t dest;
+    u_int8_t zero; //reserved, check http://www.rhyshaden.com/udp.htm
+    u_int8_t protocol;
+    u_int16_t udp_length;
+};
+
+unsigned short csum (unsigned short *buf, int nwords);
+
+uint16_t udp_checksum(const struct iphdr *ip, const struct udphdr *udp, const uint16_t *buf){
+//take in account padding if necessary
+    int calculated_length = ntohs(udp->len)%2 == 0 ? ntohs(udp->len) : ntohs(udp->len) + 1;
+
+    struct pseudo_hdr ps_hdr = {0};
+    bzero (&ps_hdr, sizeof(struct pseudo_hdr));
+    uint8_t data[sizeof(struct pseudo_hdr) + calculated_length];
+    bzero (data, sizeof(struct pseudo_hdr) + calculated_length );
+
+    ps_hdr.source = ip->saddr;
+    ps_hdr.dest = ip->daddr;
+    ps_hdr.protocol = IPPROTO_UDP; //17
+    ps_hdr.udp_length = udp->len;
+
+    memcpy(data, &ps_hdr, sizeof(struct pseudo_hdr));
+
+    //the remaining bytes are already set to 0
+    memcpy(data + sizeof(struct pseudo_hdr), buf, ntohs(udp->len) );
+
+    return csum((uint16_t *)data, sizeof(data)/2);
+}
+
+/* Not my code */
+unsigned short csum (unsigned short *buf, int nwords){
+    unsigned long sum;
+
+    for (sum = 0; nwords > 0; nwords--)
+    sum += *buf++;
+
+    sum = (sum >> 16) + (sum & 0xffff);
+    sum += (sum >> 16);
+    return ~sum;
+}
+
+
+
+
+/*unsigned int checksum(uint16_t *usBuff, int isize)
 {
     unsigned int cksum=0;
     for(;isize>1;isize-=2){
@@ -140,7 +195,7 @@ uint16_t udp_checksum(const void* buff, size_t len, in_addr_t src_addr, in_addr_
 
     // Return the one's complement of sum                           //
     return ( (uint16_t)(~sum)  );
-}
+}*/
 
 
 void display_packet( char *buf, int n ){
@@ -268,6 +323,9 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
                 if(iinterface == ied_if_index){
                     // IED -> RPi -> Network
 
+                    struct iphdr *ip = (struct iphdr *)buf; 
+                    struct udphdr *udp = (struct udphdr *)((void *) ip + sizeof(struct iphdr));
+
                     uint8_t* dest = NULL;
                     int res = r_gooseMessage_InsertHMAC(&buf[index], key, key_size, HMAC_SHA256_80, &dest);
                     uint8_t* tmp = (uint8_t*)malloc((ret*sizeof(uint8_t))+MAC_SIZES[HMAC_SHA256_80]);
@@ -282,7 +340,11 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     //uint16_t checksum = udp_checksum(tmp, ret+MAC_SIZES[HMAC_SHA256_80],decode_4bytesToInt(tmp,12),decode_4bytesToInt(tmp,16));
 
-                    uint16_t checksum = check_udp_sum(tmp, ret - sizeof(struct ipheader));
+                    //uint16_t checksum = check_udp_sum(tmp, ret - sizeof(struct ipheader));
+
+                    udp->check = 0;
+
+                    uint16_t checksum = udp_checksum(ip,udp, udp);
 
                     encodeInt2Bytes(tmp, checksum, 26);
 
