@@ -22,6 +22,8 @@ int r_goose_port = 102;
 uint8_t* key;
 int key_size;
 
+unsigned char *pacote;
+
 #define PCKT_LEN 8192
 #define FLAG_R 0x8400
 #define FLAG_Q 0x0100
@@ -311,12 +313,14 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
     u_int32_t id;
     char* buf;
+    char* buf1;
 
     struct nfqnl_msg_packet_hdr *ph;
     ph = nfq_get_msg_packet_hdr(nfa);   
     id = ntohl(ph->packet_id);
     
-    int ret = nfq_get_payload(nfa, &buf);
+    int ret = nfq_get_payload(nfa, &buf1);
+    buf = pacote;
 
     int index = 9;      // IP Header Protocol Field
 
@@ -388,7 +392,7 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
                     printf("checksum: %02x %02x\n", tmp[26], tmp[27]);
 
                     //return nfq_set_verdict(qh, id, NF_ACCEPT, ret+MAC_SIZES[HMAC_SHA256_80], tmp);
-                    return nfq_set_verdict(qh, id, NF_ACCEPT, ret, buf);
+                    return nfq_set_verdict(qh, id, NF_ACCEPT, ret, buf1);
 
 
                 //}else if(iinterface == network_if_index){
@@ -431,6 +435,25 @@ int main(int argc, char **argv)
     char keyHex[] = "11754cd72aec309bf52f7687212e8957";
     key = hexStringToBytes(keyHex, 32);
     key_size = 16;
+
+
+    // REMOVER
+    FILE *fp;
+    long filelen;
+
+    char* filename = "valid_large.pkt";
+
+    fp = fopen(filename, "rb");
+
+    fseek(fp, 0, SEEK_END);
+
+    filelen = ftell(fp);
+    rewind(fp);
+
+    pacote = (unsigned char*) malloc(filelen*sizeof(char));
+
+    fread(pacote, filelen, 1, fp);
+    fclose(fp);
 
 
     printf("opening library handle\n");
