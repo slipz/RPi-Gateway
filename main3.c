@@ -340,7 +340,7 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
         printf("dest_port: %d\n", dest_port);
 
         // Verificar se está correto no ambiente real
-        if(dest_port == r_goose_port){
+        //if(dest_port == r_goose_port){
             // Packet for R-GOOSE Application
             index += 6;     // UDP Payload - R-GOOSE
             if(buf[index] == 0x01 && buf[index+1] == 0x40){
@@ -405,10 +405,10 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
                 // Not for R-GOOSE 
                 return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
             }
-        }else{
+        //}else{
             // Not for R-GOOSE 
             return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
-        }
+        //}
 
     // Else if could be changed to single else
     }else{
