@@ -364,6 +364,8 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     encodeInt2Bytes(tmp, 0, 10);
 
+                    r_goose_dissect(&buf[28]);
+
                     r_goose_dissect(&tmp[28]);
                     
                     struct iphdr *ip = (struct iphdr *)tmp; 
@@ -383,7 +385,7 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     free(dest);
                     free(tmp);
-                    //free(buf);
+                    free(buf);
 
                     return res_set_veredict;
 
