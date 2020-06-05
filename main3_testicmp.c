@@ -22,6 +22,7 @@ int r_goose_port = 102;
 uint8_t* key;
 int key_size;
 
+unsigned char *pacote;
 
 #define PCKT_LEN 8192
 #define FLAG_R 0x8400
@@ -312,17 +313,25 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
     u_int32_t id;
     char* buf;
+    char* buf1;
 
     struct nfqnl_msg_packet_hdr *ph;
     ph = nfq_get_msg_packet_hdr(nfa);   
     id = ntohl(ph->packet_id);
     
-    int ret = nfq_get_payload(nfa, &buf);
+    int ret = nfq_get_payload(nfa, &buf1);
+    buf = pacote;
+
+
 
     int index = 9;      // IP Header Protocol Field
 
 
-    if(buf[index] == 0x11){
+
+
+
+    //if(buf[index] == 0x11){
+    if(buf1[index] == 0x01){
         // Protocol == UDP
         printf("Protocol: UDP\n");
 
@@ -337,17 +346,17 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
         printf("dest_port: %d\n", dest_port);
 
         // Verificar se está correto no ambiente real
-        if(dest_port == r_goose_port){
+        //if(dest_port == r_goose_port){
             // Packet for R-GOOSE Application
             index += 6;     // UDP Payload - R-GOOSE
-            if(buf[index] == 0x01 && buf[index+1] == 0x40){
+            //if(buf[index] == 0x01 && buf[index+1] == 0x40){
                 // Init Sesstion Header Valid
 
 
                 // Fetching index of physical interface packet arrived
                 u_int32_t iinterface = nfq_get_physindev(nfa);
 
-                if(iinterface == ied_if_index){
+                //if(iinterface == ied_if_index){
                     // IED -> RPi -> Network
 
                     
@@ -364,7 +373,12 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     encodeInt2Bytes(tmp, 0, 10);
 
-                    r_goose_dissect(&tmp[28]);
+                    //r_goose_dissect(&tmp[28]);
+
+                    //uint16_t checksum = udp_checksum(tmp, ret+MAC_SIZES[HMAC_SHA256_80],decode_4bytesToInt(tmp,12),decode_4bytesToInt(tmp,16));
+
+                    //uint16_t checksum = check_udp_sum(tmp, ret - sizeof(struct ipheader));
+
                     
                     struct iphdr *ip = (struct iphdr *)tmp; 
                     struct udphdr *udp = (struct udphdr *)((void *) ip + sizeof(struct iphdr));
@@ -379,27 +393,28 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     printf("checksum: %02x %02x\n", tmp[26], tmp[27]);
 
-                    return nfq_set_verdict(qh, id, NF_ACCEPT, ret+MAC_SIZES[HMAC_SHA256_80], tmp);
+                    //return nfq_set_verdict(qh, id, NF_ACCEPT, ret+MAC_SIZES[HMAC_SHA256_80], tmp);
+                    return nfq_set_verdict(qh, id, NF_ACCEPT, ret, buf1);
 
 
-                }else if(iinterface == network_if_index){
+                //}else if(iinterface == network_if_index){
                     // Network -> RPi -> IED
 
 
-                    return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+                    //return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
 
-                }else{
+                //}else{
                     // Not normal - Suspicious traffic ? DROP or simply ACCEPT?
-                    return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
-                }
-            }else{
+                    //return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+                //}
+            //}else{
                 // Not for R-GOOSE 
-                return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
-            }
-        }else{
+                //return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+            //}
+        //}else{
             // Not for R-GOOSE 
-            return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
-        }
+            //return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
+        //}
 
     // Else if could be changed to single else
     }else{
@@ -422,6 +437,34 @@ int main(int argc, char **argv)
     char keyHex[] = "11754cd72aec309bf52f7687212e8957";
     key = hexStringToBytes(keyHex, 32);
     key_size = 16;
+
+
+    // REMOVER
+    FILE *fp;
+    long filelen;
+
+    char* filename = "packet.pkt";
+
+    fp = fopen(filename, "rb");
+
+    fseek(fp, 0, SEEK_END);
+
+    filelen = ftell(fp);
+    rewind(fp);
+
+    pacote = (unsigned char*) malloc(filelen*sizeof(char));
+
+    fread(pacote, filelen, 1, fp);
+    fclose(fp);
+
+
+    pacote = pacote+14;
+
+    int l;
+    for(l = 0; l<filelen; l++){
+        printf("%02X ", pacote[l]);
+    }
+    printf("\n\n\n");
 
 
     printf("opening library handle\n");
