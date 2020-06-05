@@ -379,7 +379,13 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     printf("checksum: %02x %02x\n", tmp[26], tmp[27]);
 
-                    return nfq_set_verdict(qh, id, NF_ACCEPT, ret+MAC_SIZES[HMAC_SHA256_80], tmp);
+                    int res_set_veredict = nfq_set_verdict(qh, id, NF_ACCEPT, ret+MAC_SIZES[HMAC_SHA256_80], tmp);
+
+                    free(dest);
+                    free(tmp);
+                    //free(buf);
+
+                    return res_set_veredict;
 
 
                 }else if(iinterface == network_if_index){
