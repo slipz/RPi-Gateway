@@ -385,7 +385,7 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     free(dest);
                     free(tmp);
-                    free(buf);
+                    //free(buf);
 
                     return res_set_veredict;
 
