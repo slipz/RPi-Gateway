@@ -332,7 +332,7 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
 
     //if(buf[index] == 0x11){
-    if(buf[index] == 0x01){
+    if(buf1[index] == 0x01){
         // Protocol == UDP
         printf("Protocol: UDP\n");
 
