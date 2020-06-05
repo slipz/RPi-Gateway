@@ -321,6 +321,7 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
     
     int ret = nfq_get_payload(nfa, &buf1);
     buf = pacote;
+    buf = buf+14;
 
     int index = 9;      // IP Header Protocol Field
 
@@ -441,7 +442,7 @@ int main(int argc, char **argv)
     FILE *fp;
     long filelen;
 
-    char* filename = "valid_large.pkt";
+    char* filename = "packet.pkt";
 
     fp = fopen(filename, "rb");
 
