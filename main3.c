@@ -321,7 +321,6 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
     
     int ret = nfq_get_payload(nfa, &buf1);
     buf = pacote;
-    buf = buf+14;
 
 
 
