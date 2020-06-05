@@ -323,6 +323,8 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
     buf = pacote;
     buf = buf+14;
 
+
+
     int index = 9;      // IP Header Protocol Field
 
 
@@ -455,6 +457,15 @@ int main(int argc, char **argv)
 
     fread(pacote, filelen, 1, fp);
     fclose(fp);
+
+
+    pacote = pacote+14;
+
+    int l;
+    for(l = 0; l<filelen; l++){
+        printf("%02X ", pacote[l]);
+    }
+    printf("\n\n\n");
 
 
     printf("opening library handle\n");
