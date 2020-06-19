@@ -350,7 +350,7 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
                 if(iinterface == ied_if_index){
                     // IED -> RPi -> Network
 
-		            int alg1 = GMAC_AES256_128;                    
+		            int alg1 = AES_128_GCM;                    
 
                     /*uint8_t* dest = NULL;
                     int res = r_gooseMessage_InsertGMAC(&buf[index], key, key_size, alg1, &dest);
@@ -386,7 +386,7 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     buf[28+INDEX_ENCRYPTION_ALG] = 0x02;
 
-                    int res = r_gooseMessage_Decrypt(&buf[index], key, iv, iv_size);
+                    int res = r_gooseMessage_Encrypt(&buf[index], key, alg1, 1, 1, 1,iv, iv_size);
 
                     encodeInt2Bytes(buf, 0, 10);
 
