@@ -436,6 +436,84 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
                 }else if(iinterface == network_if_index){
                     // Network -> RPi -> IED
 
+                                        int alg1 = AES_128_GCM;                    
+
+                    /*uint8_t* dest = NULL;
+                    int res = r_gooseMessage_InsertGMAC(&buf[index], key, key_size, alg1, &dest);
+                    uint8_t* tmp = (uint8_t*)malloc((ret*sizeof(uint8_t))+MAC_SIZES[alg1]);
+                    memcpy(tmp,buf,28);
+                    memcpy(&tmp[28], dest, ret-28+MAC_SIZES[alg1]);
+
+                    encodeInt2Bytes(tmp, udp_length+MAC_SIZES[alg1], 24);
+
+                    encodeInt2Bytes(tmp, ret+MAC_SIZES[alg1], 2);
+
+                    encodeInt2Bytes(tmp, 0, 10);
+
+//                    r_goose_dissect(&buf[28]);
+
+//                    r_goose_dissect(&tmp[28]);
+                    
+                    struct iphdr *ip = (struct iphdr *)tmp; 
+                    struct udphdr *udp = (struct udphdr *)((void *) ip + sizeof(struct iphdr));
+
+                    compute_ip_checksum(ip);
+
+                    udp->check = 0;
+
+                    uint16_t checksum = htons(udp_checksum(ip,udp, udp));
+
+                    encodeInt2Bytes(tmp, checksum, 26);
+
+//                    printf("checksum: %02x %02x\n", tmp[26], tmp[27]);
+                    */
+
+                    /* Encrypt */
+
+                    buf[28+INDEX_ENCRYPTION_ALG] = 0x02;
+
+                    int res = r_gooseMessage_Encrypt(&buf[index], key, alg1, 1, 1, 1,iv, iv_size);
+
+                    encodeInt2Bytes(buf, 0, 10);
+
+                    struct iphdr *ip = (struct iphdr *)buf; 
+                    struct udphdr *udp = (struct udphdr *)((void *) ip + sizeof(struct iphdr));
+                    
+                    compute_ip_checksum(ip);
+
+                    udp->check = 0;
+
+                    uint16_t checksum = htons(udp_checksum(ip,udp, udp));
+
+                    encodeInt2Bytes(buf, checksum, 26);
+
+                    //printf("checksum: %02x %02x\n", buf[26], buf[27]);
+    
+//                  r_goose_dissect(&buf[28]);
+
+                    /*int res, res1;
+    
+                    if((res = r_gooseMessage_ValidateGMAC(&buf[28],key,key_size)) == 1){
+                    res1 = 1;
+        //printf("valid\n");
+                    }else if(res == 2){
+                    res1 = 2;
+                        }else{
+                        res1 = 3;
+                    }*/
+
+
+
+
+                    int res_set_veredict = nfq_set_verdict(qh, id, NF_ACCEPT, ret, buf);
+
+                    //free(dest);
+                    //free(tmp);
+                    //free(buf);
+
+                    return res_set_veredict;
+
+
 
                     return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
 
@@ -474,7 +552,7 @@ int main(int argc, char **argv)
     key = hexStringToBytes(keyHex, 32);
     key_size = 16;
 
-    iv = hexStringToBytes(ivHex,24);
+    iv = hexStringToBytes(ivHex,24);nano 
 
 
     printf("opening library handle\n");
