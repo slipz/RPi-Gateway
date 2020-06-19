@@ -23,6 +23,7 @@ uint8_t* key;
 int key_size;
 
 unsigned char *pacote;
+long filelen;
 
 #define PCKT_LEN 8192
 #define FLAG_R 0x8400
@@ -359,21 +360,23 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
                 //if(iinterface == ied_if_index){
                     // IED -> RPi -> Network
 
-                    
+                    int alg1 = GMAC_AES256_128;
 
                     uint8_t* dest = NULL;
-                    int res = r_gooseMessage_InsertHMAC(&buf[index], key, key_size, HMAC_SHA256_80, &dest);
-                    uint8_t* tmp = (uint8_t*)malloc((ret*sizeof(uint8_t))+MAC_SIZES[HMAC_SHA256_80]);
+                    int res = r_gooseMessage_InsertGMAC(&buf[index], key, key_size, alg1, &dest);
+                    uint8_t* tmp = (uint8_t*)malloc((filelen*sizeof(uint8_t))+MAC_SIZES[alg1]);
                     memcpy(tmp,buf,28);
-                    memcpy(&tmp[28], dest, ret-28+MAC_SIZES[HMAC_SHA256_80]);
+                    memcpy(&tmp[28], dest, filelen-28+MAC_SIZES[alg1]);
 
-                    encodeInt2Bytes(tmp, udp_length+MAC_SIZES[HMAC_SHA256_80], 24);
+                    encodeInt2Bytes(tmp, udp_length+MAC_SIZES[alg1], 24);
 
-                    encodeInt2Bytes(tmp, ret+MAC_SIZES[HMAC_SHA256_80], 2);
+                    encodeInt2Bytes(tmp, filelen+MAC_SIZES[alg1], 2);
 
                     encodeInt2Bytes(tmp, 0, 10);
+			
+//		    r_goose_dissect(dest);
 
-                    //r_goose_dissect(&tmp[28]);
+//                  r_goose_dissect(&tmp[28]);
 
                     //uint16_t checksum = udp_checksum(tmp, ret+MAC_SIZES[HMAC_SHA256_80],decode_4bytesToInt(tmp,12),decode_4bytesToInt(tmp,16));
 
@@ -394,9 +397,16 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
                     printf("checksum: %02x %02x\n", tmp[26], tmp[27]);
 
                     //return nfq_set_verdict(qh, id, NF_ACCEPT, ret+MAC_SIZES[HMAC_SHA256_80], tmp);
-                    return nfq_set_verdict(qh, id, NF_ACCEPT, ret, buf1);
 
+		    
 
+                    
+	            int res_set = nfq_set_verdict(qh, id, NF_ACCEPT, ret, buf1);
+		    free(dest);
+      		    free(tmp);
+
+		    return res_set;
+			
                 //}else if(iinterface == network_if_index){
                     // Network -> RPi -> IED
 
@@ -441,7 +451,7 @@ int main(int argc, char **argv)
 
     // REMOVER
     FILE *fp;
-    long filelen;
+    
 
     char* filename = "packet.pkt";
 
