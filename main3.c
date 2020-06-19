@@ -350,9 +350,9 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
                 if(iinterface == ied_if_index){
                     // IED -> RPi -> Network
 
-		    int alg1 = GMAC_AES256_128;                    
+		            int alg1 = GMAC_AES256_128;                    
 
-                    uint8_t* dest = NULL;
+                    /*uint8_t* dest = NULL;
                     int res = r_gooseMessage_InsertGMAC(&buf[index], key, key_size, alg1, &dest);
                     uint8_t* tmp = (uint8_t*)malloc((ret*sizeof(uint8_t))+MAC_SIZES[alg1]);
                     memcpy(tmp,buf,28);
@@ -380,11 +380,49 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
                     encodeInt2Bytes(tmp, checksum, 26);
 
 //                    printf("checksum: %02x %02x\n", tmp[26], tmp[27]);
+                    */
 
-                    int res_set_veredict = nfq_set_verdict(qh, id, NF_ACCEPT, ret+MAC_SIZES[alg1], tmp);
+                    /* Encrypt */
 
-                    free(dest);
-                    free(tmp);
+                    buf[28+INDEX_ENCRYPTION_ALG] = 0x02;
+
+                    int res = r_gooseMessage_Decrypt(&buf[index], key, iv, iv_size);
+
+                    encodeInt2Bytes(buf, 0, 10);
+
+                    struct iphdr *ip = (struct iphdr *)buf; 
+                    struct udphdr *udp = (struct udphdr *)((void *) ip + sizeof(struct iphdr));
+                    
+                    compute_ip_checksum(ip);
+
+                    udp->check = 0;
+
+                    uint16_t checksum = htons(udp_checksum(ip,udp, udp));
+
+                    encodeInt2Bytes(buf, checksum, 26);
+
+                    //printf("checksum: %02x %02x\n", buf[26], buf[27]);
+    
+//                  r_goose_dissect(&buf[28]);
+
+                    /*int res, res1;
+    
+                    if((res = r_gooseMessage_ValidateGMAC(&buf[28],key,key_size)) == 1){
+                    res1 = 1;
+        //printf("valid\n");
+                    }else if(res == 2){
+                    res1 = 2;
+                        }else{
+                        res1 = 3;
+                    }*/
+
+
+
+
+                    int res_set_veredict = nfq_set_verdict(qh, id, NF_ACCEPT, ret, buf);
+
+                    //free(dest);
+                    //free(tmp);
                     //free(buf);
 
                     return res_set_veredict;
