@@ -25,6 +25,11 @@ int key_size;
 unsigned char *pacote;
 long filelen;
 
+char ivHex[] = "75b66d3df73da95345c11a32";
+uint8_t* iv;
+
+int iv_size = 12;
+
 #define PCKT_LEN 8192
 #define FLAG_R 0x8400
 #define FLAG_Q 0x0100
@@ -362,6 +367,30 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     int alg1 = GMAC_AES256_128;
 
+
+                    /* Encrypt */
+
+                    int res = r_gooseMessage_Encrypt(&buf[index], key, AES_256_GCM, 1, 1, 1, iv, iv_size);
+
+                    encodeInt2Bytes(buf, 0, 10);
+
+                    struct iphdr *ip = (struct iphdr *)buf; 
+                    struct udphdr *udp = (struct udphdr *)((void *) ip + sizeof(struct iphdr));
+                    
+                    compute_ip_checksum(ip);
+
+                    udp->check = 0;
+
+                    uint16_t checksum = htons(udp_checksum(ip,udp, udp));
+
+                    encodeInt2Bytes(buf, checksum, 26);
+
+                    printf("checksum: %02x %02x\n", buf[26], buf[27]);
+
+
+
+                    /* auth *
+
                     uint8_t* dest = NULL;
                     int res = r_gooseMessage_InsertGMAC(&buf[index], key, key_size, alg1, &dest);
                     uint8_t* tmp = (uint8_t*)malloc((filelen*sizeof(uint8_t))+MAC_SIZES[alg1]);
@@ -371,6 +400,7 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
                     encodeInt2Bytes(tmp, udp_length+MAC_SIZES[alg1], 24);
 
                     encodeInt2Bytes(tmp, filelen+MAC_SIZES[alg1], 2);
+
 
                     encodeInt2Bytes(tmp, 0, 10);
 			
@@ -398,12 +428,12 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     //return nfq_set_verdict(qh, id, NF_ACCEPT, ret+MAC_SIZES[HMAC_SHA256_80], tmp);
 
-		    
+		          */
 
                     
 	            int res_set = nfq_set_verdict(qh, id, NF_ACCEPT, ret, buf1);
-		    free(dest);
-      		    free(tmp);
+		    //free(dest);
+      		    //free(tmp);
 
 		    return res_set;
 			
@@ -466,6 +496,8 @@ int main(int argc, char **argv)
 
     fread(pacote, filelen, 1, fp);
     fclose(fp);
+
+    iv = hexStringToBytes(ivHex,24);
 
 
     pacote = pacote+14;
