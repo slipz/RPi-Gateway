@@ -22,6 +22,11 @@ int r_goose_port = 102;
 uint8_t* key;
 int key_size;
 
+char ivHex[] = "75b66d3df73da95345c11a32";
+uint8_t* iv;
+
+int iv_size = 12;
+
 
 #define PCKT_LEN 8192
 #define FLAG_R 0x8400
@@ -468,6 +473,8 @@ int main(int argc, char **argv)
     char keyHex[] = "11754cd72aec309bf52f7687212e8957";
     key = hexStringToBytes(keyHex, 32);
     key_size = 16;
+
+    iv = hexStringToBytes(ivHex,24);
 
 
     printf("opening library handle\n");
