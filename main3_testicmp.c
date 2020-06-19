@@ -56,7 +56,7 @@ struct ipheader {
  unsigned char      iph_ttl;
 
  unsigned char      iph_protocol;
-
+	
  unsigned short int iph_chksum;
 
  unsigned int       iph_sourceip;
@@ -370,7 +370,9 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     /* Encrypt */
 
-                    int res = r_gooseMessage_Encrypt(&buf[index], key, AES_256_GCM, 1, 1, 1, iv, iv_size);
+/*		    buf[28+INDEX_ENCRYPTION_ALG] = 0x02;
+
+                    int res = r_gooseMessage_Decrypt(&buf[index], key, iv, iv_size);
 
                     encodeInt2Bytes(buf, 0, 10);
 
@@ -385,8 +387,21 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     encodeInt2Bytes(buf, checksum, 26);
 
-                    printf("checksum: %02x %02x\n", buf[26], buf[27]);
+                    printf("checksum: %02x %02x\n", buf[26], buf[27]);*/
+	
+//		    r_goose_dissect(&buf[28]);
 
+
+		    int res, res1;
+	
+		    if((res = r_gooseMessage_ValidateGMAC(&buf[28],key,key_size)) == 1){
+			res1 = 1;
+//printf("valid\n");
+ 		    }else if(res == 2){
+			res1 = 2;
+	            }else{
+		    	res1 = 3;
+		    }
 
 
                     /* auth *
@@ -483,7 +498,7 @@ int main(int argc, char **argv)
     FILE *fp;
     
 
-    char* filename = "packet.pkt";
+    char* filename = "packet_gmacAES256_64.bin";
 
     fp = fopen(filename, "rb");
 

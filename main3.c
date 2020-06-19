@@ -324,17 +324,17 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
     if(buf[index] == 0x11){
         // Protocol == UDP
-        printf("Protocol: UDP\n");
+//        printf("Protocol: UDP\n");
 
         int udp_length, dest_port;
 
         index = 20;         // IP Header End -> Init next protocol
         udp_length = decode_2bytesToInt(buf,index+4);
-        printf("UDP len: %d\n",udp_length);
+//        printf("UDP len: %d\n",udp_length);
 
         index += 2;         // UDP Dest Port
         dest_port = decode_2bytesToInt(buf,index);
-        printf("dest_port: %d\n", dest_port);
+//        printf("dest_port: %d\n", dest_port);
 
         // Verificar se está correto no ambiente real
         if(dest_port == r_goose_port){
@@ -350,23 +350,23 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
                 if(iinterface == ied_if_index){
                     // IED -> RPi -> Network
 
-                    
+		    int alg1 = GMAC_AES256_128;                    
 
                     uint8_t* dest = NULL;
-                    int res = r_gooseMessage_InsertHMAC(&buf[index], key, key_size, HMAC_SHA256_80, &dest);
-                    uint8_t* tmp = (uint8_t*)malloc((ret*sizeof(uint8_t))+MAC_SIZES[HMAC_SHA256_80]);
+                    int res = r_gooseMessage_InsertGMAC(&buf[index], key, key_size, alg1, &dest);
+                    uint8_t* tmp = (uint8_t*)malloc((ret*sizeof(uint8_t))+MAC_SIZES[alg1]);
                     memcpy(tmp,buf,28);
-                    memcpy(&tmp[28], dest, ret-28+MAC_SIZES[HMAC_SHA256_80]);
+                    memcpy(&tmp[28], dest, ret-28+MAC_SIZES[alg1]);
 
-                    encodeInt2Bytes(tmp, udp_length+MAC_SIZES[HMAC_SHA256_80], 24);
+                    encodeInt2Bytes(tmp, udp_length+MAC_SIZES[alg1], 24);
 
-                    encodeInt2Bytes(tmp, ret+MAC_SIZES[HMAC_SHA256_80], 2);
+                    encodeInt2Bytes(tmp, ret+MAC_SIZES[alg1], 2);
 
                     encodeInt2Bytes(tmp, 0, 10);
 
-                    r_goose_dissect(&buf[28]);
+//                    r_goose_dissect(&buf[28]);
 
-                    r_goose_dissect(&tmp[28]);
+//                    r_goose_dissect(&tmp[28]);
                     
                     struct iphdr *ip = (struct iphdr *)tmp; 
                     struct udphdr *udp = (struct udphdr *)((void *) ip + sizeof(struct iphdr));
@@ -379,9 +379,9 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *
 
                     encodeInt2Bytes(tmp, checksum, 26);
 
-                    printf("checksum: %02x %02x\n", tmp[26], tmp[27]);
+//                    printf("checksum: %02x %02x\n", tmp[26], tmp[27]);
 
-                    int res_set_veredict = nfq_set_verdict(qh, id, NF_ACCEPT, ret+MAC_SIZES[HMAC_SHA256_80], tmp);
+                    int res_set_veredict = nfq_set_verdict(qh, id, NF_ACCEPT, ret+MAC_SIZES[alg1], tmp);
 
                     free(dest);
                     free(tmp);
